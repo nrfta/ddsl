@@ -98,17 +98,17 @@ The following structure is required.
   📄 roles.drop.sql
   📂 schemas
     📂 constraints
-      📄 <table_name>.create.sql
-      📄 <table_name>.drop.sql
+      📄 <table_or_view_name>.create.sql
+      📄 <table_or_view_name>.drop.sql
     📂 indexes
-      📄 <table_name>.create.sql
-      📄 <table_name>.drop.sql
+      📄 <table_or_view_name>.create.sql
+      📄 <table_or_view_name>.drop.sql
     📂 tables
       📄 <table_name>.create.sql
       📄 <table_name>.drop.sql
     📂 views
-      📄 <table_name>.create.sql
-      📄 <table_name>.drop.sql
+      📄 <view_name>.create.sql
+      📄 <view_name>.drop.sql
   📂 migrations
     📄 <version>_<title>.up.ddsl
     📄 <version>_<title>.down.ddsl
