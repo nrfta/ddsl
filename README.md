@@ -21,18 +21,15 @@ go get github.com/neighborly/ddsl
 ## Usage
 
 ```$sh
-ddsl -H <host> -U <user> -d <driver> -r <database_repo> -c COMMAND
-ddsl -H <host> -U <user> -d <driver> -r <database_repo> -f /pat/to/file.ddsl
+ddsl -r <database_repo> -d <database_rds_uri> -c COMMAND
+ddsl -r <database_repo> -d <database_rds_uri> -f /pat/to/file.ddsl
 ddsl --version
 ```
 
 The usage can be shortend by setting environment variables.
 
-* `DDSL_URI` - Database URI in format expected by RDS 
-* `DDSL_USER` - Database user, defaults to process user
-* `DDSL_PASSWORD` - Database user's password, will prompt if not provided
-* `DDSL_DRIVER` - RDS driver, defaults to Postgres
 * `DDSL_DATABASE_REPO` - Source code repo URL for the database DDL and migrations
+* `DDSL_RDS_URI` - Database URI in format expected by RDS, properly URL encoded
 
 ## Command Syntax
 
