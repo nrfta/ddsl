@@ -8,7 +8,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-var appVersion = ""
+// Set this value using the Go linker based on git tag. See https://stackoverflow.com/a/11355611
+var appVersion string
 
 var source string
 var database string
@@ -30,6 +31,9 @@ Run commands from a ddsl file:
     ddsl [OPTIONS] -f /path/to/file.ddsl`,
 
 	Run: func(cmd *cobra.Command, args []string) {
+		db := viper.GetString("database")
+		src := viper.GetString("source")
+
 		switch {
 
 		case version:
@@ -41,16 +45,16 @@ Run commands from a ddsl file:
 			os.Exit(1)
 
 		case len(command) > 0:
-			ensureArgs()
-			exitCode, err := runCommand(source, database, command)
+			ensureArgs(src, db)
+			exitCode, err := runCommand(src, db, command)
 			if err != nil {
 				fmt.Println(err)
 			}
 			os.Exit(exitCode)
 
 		case len(file) > 0:
-			ensureArgs()
-			exitCode, err := runFile(source, database, file)
+			ensureArgs(src, db)
+			exitCode, err := runFile(src, db, file)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -64,12 +68,12 @@ Run commands from a ddsl file:
 	},
 }
 
-func ensureArgs() {
-	if len(database) == 0 {
+func ensureArgs(src string, db string) {
+	if len(db) == 0 {
 		fmt.Println("no database URL provided")
 		os.Exit(1)
 	}
-	if len(source) == 0 {
+	if len(src) == 0 {
 		fmt.Println("no source repository provided")
 		os.Exit(1)
 	}
@@ -87,22 +91,23 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
+	viper.SetEnvPrefix("ddsl")
+	viper.BindEnv("source")
+	viper.BindEnv("database")
+
 	rootCmd.PersistentFlags().StringVarP(&source, "source", "s", "", "DDL source repo (default DDSL_SOURCE)")
 	viper.BindPFlag("source", rootCmd.PersistentFlags().Lookup("source"))
 
-	rootCmd.PersistentFlags().StringVarP(&source, "database", "d", "", "URL for RDS and database (default DDSL_DATABASE)")
+	rootCmd.PersistentFlags().StringVarP(&database, "database", "d", "", "URL for RDS and database (default DDSL_DATABASE)")
 	viper.BindPFlag("database", rootCmd.PersistentFlags().Lookup("database"))
 
 	rootCmd.PersistentFlags().BoolVar(&version, "version", false, "show version number and exit")
 	rootCmd.PersistentFlags().StringVarP(&command, "command", "c", "", "DDSL command to run")
 	rootCmd.PersistentFlags().StringVarP(&file, "file", "f", "", "file containing DDSL commands")
+
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	viper.SetEnvPrefix("ddsl")
-	viper.BindEnv("source")
-	viper.BindEnv("database")
 	viper.AutomaticEnv()
-
 }
