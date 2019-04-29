@@ -114,7 +114,7 @@ The following structure is required.
     📄 <version>_<title>.down.ddsl
 ```
 
-Migrates are written in DDSL because often migrations simply need to create a specific table
+Migrations are written in DDSL because often migrations simply need to create a specific table
 or index, or drop something. The DDL for that already exists in some version of the database 
 code repository, so it is DRY to be able to access that code from within the migrations. You 
 can also run SQL commands in the migrations using the DDSL `SQL` command.
