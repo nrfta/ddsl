@@ -20,6 +20,7 @@ func TestParser(t *testing.T) {
 		create view cat in foo
 		create indexes on foo.bar @v1.3
 		create constraints on foo.cat
+
 		drop database @v1.3
 		drop roles
 		drop extensions @v1.3
@@ -31,6 +32,7 @@ func TestParser(t *testing.T) {
 		drop view cat in foo @v1.3
 		drop indexes on foo.bar
 		drop constraints on foo.cat @v1.3
+
 		migrate top
 		migrate bottom
 		migrate up 2
