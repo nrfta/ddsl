@@ -18,10 +18,10 @@ type DDSL struct {
 
 // Command contains details of a create or drop command. Only one of the members will be `true` or populated.
 type Command struct {
-	Database       *Tag                `"DATABASE" [@@]`
-	Roles          *Tag                `| "ROLES" [@@]`
-	Extensions     *Tag                `| "EXTENSIONS" [@@]`
-	ForeignKeys    *Tag                `| ("FOREIGN" "KEYS") [@@]`
+	Database       *Database           `"DATABASE" @@`
+	Roles          *Roles              `| "ROLES" @@`
+	Extensions     *Extensions         `| "EXTENSIONS" @@`
+	ForeignKeys    *ForeignKeys        `| ("FOREIGN" "KEYS") @@`
 	Schema         *Name               `| "SCHEMA" @@`
 	TablesInSchema *Name               `| "TABLES" "IN" @@`
 	ViewsInSchema  *Name               `| "VIEWS" "IN" @@`
@@ -29,6 +29,26 @@ type Command struct {
 	View           *TableOrViewSubject `| "VIEW" @@`
 	Indexes        *SchemaItem         `| "INDEXES" "ON" @@`
 	Constraints    *SchemaItem         `| "CONSTRAINTS" "ON" @@`
+}
+
+// Database contains details for action on a database.
+type Database struct {
+	Tag *string `[@Tag]`
+}
+
+// Roles contains details for action on roles.
+type Roles struct {
+	Tag *string `[@Tag]`
+}
+
+// Extensions contains details for action on extensions.
+type Extensions struct {
+	Tag *string `[@Tag]`
+}
+
+// ForeignKeys contains details for action on a foreign keys.
+type ForeignKeys struct {
+	Tag *string `[@Tag]`
 }
 
 // TableOrViewSubject contains the schema and table or view when it is the subject of the command.
@@ -72,14 +92,35 @@ var (
 		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
 		"|(?P<Sql>(?s)`(.|\\n)*`)" +
 		`|(?P<Tag>@[a-zA-Z0-9_\-\.]*)` +
+		`|(?P<Comment>--.*)` +
+		`|(?P<MultiComment>(?s)/\*(.*|\n)\*/)` +
 		`|(?P<Int>\d*)`
 
-	ddsllLexer = lexer.Must(lexer.Regexp(re))
+	ddslEbnf = `
+		Keyword = ( "CREATE" | "DROP" | "DATABASE" | "ROLES" | "EXTENSIONS" | "FOREIGN" | "KEYS" | "SCHEMA" | "TABLES" | "TABLE" | "VIEWS" | "VIEW" | "INDEXES" | "CONSTRAINTS" | "IN" | "ON" | "MIGRATE" | "TOP" | "BOTTOM" | "UP" | "DOWN" | "SQL" ) .
+	    Comment = "--" {  any_no_newline } .
+		MultiComment = "/*" { any } "*/" .
+		Ident = (alpha | "_") { "_" | alpha | digit } .
+		SchemaItem = Ident [ "." Ident ] .
+		Tag = "@" ( alpha | digit ) { alpha | digit | "_" | "." | "-" } .
+		Int = { digit } .
+		alpha = "a"…"z" | "A"…"Z" .
+		digit = "0"…"9" .
+		punct = "!"…"/" | ":"…"@" | "["…"_" | "{"…"~" .
+		any = "\u0000"…"\uffff" .
+		any_no_newline = ( "\u0000"…"\u0009" | "\u000e"…"\uffff" ) .
+		newline = ( "\n" | "\r" ) . ` +
+		"Sql = \"`\" { alpha | digit | punct } \"`\" ."
 
-	ddsllParser = participle.MustBuild(
+	//ddslLexer = lexer.Must(ebnf.New(ddslEbnf))
+
+	ddslLexer = lexer.Must(lexer.Regexp(re))
+
+	ddslParser = participle.MustBuild(
 		&DDSL{},
-		participle.Lexer(ddsllLexer),
+		participle.Lexer(ddslLexer),
 		participle.CaseInsensitive("Keyword"),
+		participle.Elide("Comment", "MultiComment"),
 	)
 )
 
@@ -135,7 +176,7 @@ func Parse(commands string) ([]*DDSL, error) {
 
 func parse(command string) (*DDSL, error) {
 	tree := &DDSL{}
-	err := ddsllParser.ParseString(command, tree)
+	err := ddslParser.ParseString(command, tree)
 	if err == nil {
 		// Some commands require a bit of touch up
 		if len(tree.Sql) > 0 {

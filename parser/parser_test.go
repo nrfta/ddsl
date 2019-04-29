@@ -37,6 +37,7 @@ func TestParser(t *testing.T) {
 		migrate bottom
 		migrate up 2
 		migrate down 2
+
 	`
 	command += "sql `UPDATE foo.bar SET field = 3;`\n" +
 		"" +
