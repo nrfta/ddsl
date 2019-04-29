@@ -86,6 +86,7 @@ MIGRATE DOWN 2
 DDSL is opinionated about the structure of the database source repository.
 The following structure is required.
 
+```
 📂 <database_name>
   📄 <database_name>.create.sql  
   📄 <database_name>.drop.sql
@@ -111,7 +112,6 @@ The following structure is required.
   📂 migrations
     📄 <version>_<title>.up.ddsl
     📄 <version>_<title>.down.ddsl
-  
 ```
 
 Migrates are written in DDSL because often migrations simply need to create a specific table
