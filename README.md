@@ -21,15 +21,15 @@ go get github.com/neighborly/ddsl
 ## Usage
 
 ```$sh
-ddsl -r <database_repo> -d <database_rds_uri> -c COMMAND
-ddsl -r <database_repo> -d <database_rds_uri> -f /pat/to/file.ddsl
+ddsl -s <source_repo> -d <database_rds_url> -c COMMAND
+ddsl -s <source_repo> -d <database_rds_url> -f /pat/to/file.ddsl
 ddsl --version
 ```
 
 The usage can be shortend by setting environment variables.
 
-* `DDSL_DATABASE_REPO` - Source code repo URL for the database DDL and migrations
-* `DDSL_RDS_URI` - Database URI in format expected by RDS, properly URL encoded
+* `DDSL_SOURCE` - Source code repo URL for the database DDL and migrations
+* `DDSL_DATABASE` - Database URL in format expected by RDS, properly URL encoded
 
 ## Command Syntax
 
@@ -87,31 +87,32 @@ DDSL is opinionated about the structure of the database source repository.
 The following structure is required.
 
 ```
-📂 <database_name>
-  📄 <database_name>.create.sql  
-  📄 <database_name>.drop.sql
-  📄 extensions.create.sql  
-  📄 extensions.drop.sql
-  📄 foreign_keys.create.sql  
-  📄 foreign_keys.drop.sql
-  📄 roles.create.sql  
-  📄 roles.drop.sql
-  📂 schemas
-    📂 constraints
-      📄 <table_or_view_name>.create.sql
-      📄 <table_or_view_name>.drop.sql
-    📂 indexes
-      📄 <table_or_view_name>.create.sql
-      📄 <table_or_view_name>.drop.sql
-    📂 tables
-      📄 <table_name>.create.sql
-      📄 <table_name>.drop.sql
-    📂 views
-      📄 <view_name>.create.sql
-      📄 <view_name>.drop.sql
-  📂 migrations
-    📄 <version>_<title>.up.ddsl
-    📄 <version>_<title>.down.ddsl
+📂 databases
+  📂 <database_name>
+    📄 <database_name>.create.<ext> 
+    📄 <database_name>.drop.<ext>
+    📄 extensions.create.<ext>
+    📄 extensions.drop.<ext>
+    📄 foreign_keys.create.<ext>  
+    📄 foreign_keys.drop.<ext>
+    📄 roles.create.<ext>
+    📄 roles.drop.<ext>
+    📂 schemas
+      📂 constraints
+        📄 <table_or_view_name>.create.<ext>
+        📄 <table_or_view_name>.drop.<ext>
+      📂 indexes
+        📄 <table_or_view_name>.create.<ext>
+        📄 <table_or_view_name>.drop.<ext>
+      📂 tables
+        📄 <table_name>.create.<ext>
+        📄 <table_name>.drop.<ext>
+      📂 views
+        📄 <view_name>.create.<ext>
+        📄 <view_name>.drop.<ext>
+    📂 migrations
+      📄 <version>_<title>.up.ddsl
+      📄 <version>_<title>.down.ddsl
 ```
 
 Migrations are written in DDSL because often migrations simply need to create a specific table
