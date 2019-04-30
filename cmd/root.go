@@ -21,14 +21,20 @@ var file string
 var rootCmd = &cobra.Command{
 	Use:   "ddsl [OPTIONS] [COMMAND]",
 	Short: `Data-Definition-Specific Language (DDSL, pronounced "diesel") provides a scripting language for DDL and migrations.`,
-	Long: `ddsl executes commands written in DDSL. Commands can either be one-off or stored in a ddsl file. In addition,
-ddsl files may made directly executable.
+	Long: `ddsl executes commands written in DDSL. Commands can either be one-off or stored in a ddsl file. 
+In addition, ddsl files may made directly executable.
 
 Run a one-off command:
     ddsl [OPTIONS] -c "COMMAND"
 
 Run commands from a ddsl file:
-    ddsl [OPTIONS] -f /path/to/file.ddsl`,
+    ddsl [OPTIONS] -f /path/to/file.ddsl
+
+Make ddsl file executable with "chmod +x file.ddsl" and adding shebang:
+    #!/usr/bin/env ddsl
+    COMMAND
+	COMMAND
+    etc...`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 		db := viper.GetString("database")
