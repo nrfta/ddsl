@@ -87,10 +87,10 @@ DDSL is opinionated about the structure of the database source repository.
 The following structure is required.
 
 ```
-📂 databases
+📂 <any_parent_path>
   📂 <database_name>
-    📄 <database_name>.create.<ext> 
-    📄 <database_name>.drop.<ext>
+    📄 database.create.<ext> 
+    📄 database.drop.<ext>
     📄 extensions.create.<ext>
     📄 extensions.drop.<ext>
     📄 foreign_keys.create.<ext>  
@@ -98,21 +98,24 @@ The following structure is required.
     📄 roles.create.<ext>
     📄 roles.drop.<ext>
     📂 schemas
-      📂 constraints
-        📄 <table_or_view_name>.create.<ext>
-        📄 <table_or_view_name>.drop.<ext>
-      📂 indexes
-        📄 <table_or_view_name>.create.<ext>
-        📄 <table_or_view_name>.drop.<ext>
-      📂 tables
-        📄 <table_name>.create.<ext>
-        📄 <table_name>.drop.<ext>
-      📂 views
-        📄 <view_name>.create.<ext>
-        📄 <view_name>.drop.<ext>
-    📂 migrations
-      📄 <version>_<title>.up.ddsl
-      📄 <version>_<title>.down.ddsl
+      📂 <schema_name>
+        📄 schema.create.<ext>
+        📄 schema.drop.<ext>
+        📂 constraints
+          📄 <table_or_view_name>.create.<ext>
+          📄 <table_or_view_name>.drop.<ext>
+        📂 indexes
+          📄 <table_or_view_name>.create.<ext>
+          📄 <table_or_view_name>.drop.<ext>
+        📂 tables
+          📄 <table_name>.create.<ext>
+          📄 <table_name>.drop.<ext>
+        📂 views
+          📄 <view_name>.create.<ext>
+          📄 <view_name>.drop.<ext>
+      📂 migrations
+        📄 <version>_<title>.up.ddsl
+        📄 <version>_<title>.down.ddsl
 ```
 
 Migrations are written in DDSL because often migrations simply need to create a specific table

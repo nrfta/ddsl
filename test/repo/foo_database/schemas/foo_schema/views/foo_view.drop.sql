@@ -1,0 +1,1 @@
+DROP MATERIALIZED VIEW foo_schema.foo_view CASCADE;
