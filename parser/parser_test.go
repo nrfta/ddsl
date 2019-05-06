@@ -10,28 +10,28 @@ import (
 func TestParser(t *testing.T) {
 	command := `
 		create DaTaBaSe
-		create roles @v1.3
+		create roles @tags/v1.3
 		create extensions
-		create foreign keys @v1.3
+		create foreign keys @33fda2f3
 		create schema foo
-		create tables in foo @v1.3
+		create tables in foo @vtags/v1.3
 		create views in foo
-		create table bar in foo @v1.3
+		create table bar in foo @vtags/1.3
 		create view cat in foo
-		create indexes on foo.bar @v1.3
+		create indexes on foo.bar @vtags/1.3
 		create constraints on foo.cat
 
-		drop database @v1.3
+		drop database @tags/v1.3
 		drop roles
-		drop extensions @v1.3
+		drop extensions @33fda2f3
 		drop foreign keys
-		drop schema foo @v1.3
+		drop schema foo @tags/v1.3
 		drop tables in foo
-		drop views in foo @v1.3
+		drop views in foo @tags/v1.3
 		drop table bar in foo
-		drop view cat in foo @v1.3
+		drop view cat in foo @tags/v1.3
 		drop indexes on foo.bar
-		drop constraints on foo.cat @v1.3
+		drop constraints on foo.cat @tags/v1.3
 
 		migrate top
 		migrate bottom

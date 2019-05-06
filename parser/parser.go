@@ -13,7 +13,7 @@ type DDSL struct {
 	Create  *Command `"CREATE" @@`
 	Drop    *Command `| "DROP" @@`
 	Migrate *Migrate `| "MIGRATE" @@`
-	Sql     string   `| "SQL" @Sql`
+	Sql     *string  `| "SQL" @Sql`
 }
 
 // Command contains details of a create or drop command. Only one of the members will be `true` or populated.
@@ -33,47 +33,47 @@ type Command struct {
 
 // Database contains details for action on a database.
 type Database struct {
-	Tag *string `[@Tag]`
+	Ref *Ref `[@@]`
 }
 
 // Roles contains details for action on roles.
 type Roles struct {
-	Tag *string `[@Tag]`
+	Ref *Ref `[@@]`
 }
 
 // Extensions contains details for action on extensions.
 type Extensions struct {
-	Tag *string `[@Tag]`
+	Ref *Ref `[@@]`
 }
 
 // ForeignKeys contains details for action on a foreign keys.
 type ForeignKeys struct {
-	Tag *string `[@Tag]`
+	Ref *Ref `[@@]`
 }
 
 // TableOrViewSubject contains the schema and table or view when it is the subject of the command.
 type TableOrViewSubject struct {
 	TableOrView string `@Ident`
 	Schema      string `"IN" @Ident`
-	Tag         *Tag   `[@@]`
+	Ref         *Ref   `[@@]`
 }
 
 // SchemaItem contains the schema and table or view when it is the object of the command.
 type SchemaItem struct {
 	Item        string `@SchemaItem`
-	Tag         *Tag   `[@@]`
+	Ref         *Ref   `[@@]`
 	TableOrView string
 	Schema      string
 }
 
 type Name struct {
 	Name string `@Ident`
-	Tag  *Tag   `[@@]`
+	Ref  *Ref   `[@@]`
 }
 
 // Tag contains the git tag to run the DDSL command against.
-type Tag struct {
-	Tag string `@Tag`
+type Ref struct {
+	Ref string `@Ref`
 }
 
 // Migrate contains the migration command. Only one of the members will be `true` or nonzero.
@@ -91,7 +91,7 @@ var (
 		`|(?P<SchemaItem>[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)` +
 		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
 		"|(?P<Sql>(?s)`(.|\\n)*`)" +
-		`|(?P<Tag>@[a-zA-Z0-9_\-\.]*)` +
+		`|(?P<Ref>@[a-zA-Z0-9_\-\.\/]*)` +
 		`|(?P<Comment>--.*)` +
 		`|(?P<MultiComment>(?s)/\*(.*|\n)\*/)` +
 		`|(?P<Int>\d*)`
@@ -102,7 +102,7 @@ var (
 		MultiComment = "/*" { any } "*/" .
 		Ident = (alpha | "_") { "_" | alpha | digit } .
 		SchemaItem = Ident [ "." Ident ] .
-		Tag = "@" ( alpha | digit ) { alpha | digit | "_" | "." | "-" } .
+		Ref = "@" ( alpha | digit ) { alpha | digit | "_" | "." | "-" | "/" } .
 		Int = { digit } .
 		alpha = "a"…"z" | "A"…"Z" .
 		digit = "0"…"9" .
@@ -179,8 +179,10 @@ func parse(command string) (*DDSL, error) {
 	err := ddslParser.ParseString(command, tree)
 	if err == nil {
 		// Some commands require a bit of touch up
-		if len(tree.Sql) > 0 {
-			tree.Sql = strings.Trim(tree.Sql, "`")
+		if tree.Sql != nil {
+			sql := *tree.Sql
+			trimmedSql := strings.Trim(sql, "`")
+			tree.Sql = &trimmedSql
 		}
 		if tree.Create != nil && tree.Create.Indexes != nil {
 			tree.Create.Indexes.populate()

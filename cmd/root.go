@@ -11,8 +11,6 @@ import (
 // Set this value using the Go linker based on git tag. See https://stackoverflow.com/a/11355611
 var appVersion string
 
-var source string
-var database string
 var version bool
 var command string
 var file string
@@ -101,10 +99,10 @@ func init() {
 	viper.BindEnv("source")
 	viper.BindEnv("database")
 
-	rootCmd.PersistentFlags().StringVarP(&source, "source", "s", "", "DDL source repo (default DDSL_SOURCE)")
+	rootCmd.PersistentFlags().StringP("source", "s", "", "DDL source repo (default DDSL_SOURCE)")
 	viper.BindPFlag("source", rootCmd.PersistentFlags().Lookup("source"))
 
-	rootCmd.PersistentFlags().StringVarP(&database, "database", "d", "", "URL for RDS and database (default DDSL_DATABASE)")
+	rootCmd.PersistentFlags().StringP("database", "d", "", "URL for RDS and database (default DDSL_DATABASE)")
 	viper.BindPFlag("database", rootCmd.PersistentFlags().Lookup("database"))
 
 	rootCmd.PersistentFlags().BoolVar(&version, "version", false, "show version number and exit")
