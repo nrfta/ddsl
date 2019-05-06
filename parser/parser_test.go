@@ -16,8 +16,8 @@ func TestParser(t *testing.T) {
 		create schema foo
 		create tables in foo @vtags/v1.3
 		create views in foo
-		create table bar in foo @vtags/1.3
-		create view cat in foo
+		create table foo.bar @vtags/1.3
+		create view foo.cat
 		create indexes on foo.bar @vtags/1.3
 		create constraints on foo.cat
 
@@ -28,8 +28,8 @@ func TestParser(t *testing.T) {
 		drop schema foo @tags/v1.3
 		drop tables in foo
 		drop views in foo @tags/v1.3
-		drop table bar in foo
-		drop view cat in foo @tags/v1.3
+		drop table foo.bar
+		drop view foo.cat @tags/v1.3
 		drop indexes on foo.bar
 		drop constraints on foo.cat @tags/v1.3
 

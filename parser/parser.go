@@ -18,17 +18,17 @@ type DDSL struct {
 
 // Command contains details of a create or drop command. Only one of the members will be `true` or populated.
 type Command struct {
-	Database       *Database           `"DATABASE" @@`
-	Roles          *Roles              `| "ROLES" @@`
-	Extensions     *Extensions         `| "EXTENSIONS" @@`
-	ForeignKeys    *ForeignKeys        `| ("FOREIGN" "KEYS") @@`
-	Schema         *Name               `| "SCHEMA" @@`
-	TablesInSchema *Name               `| "TABLES" "IN" @@`
-	ViewsInSchema  *Name               `| "VIEWS" "IN" @@`
-	Table          *TableOrViewSubject `| "TABLE" @@`
-	View           *TableOrViewSubject `| "VIEW" @@`
-	Indexes        *SchemaItem         `| "INDEXES" "ON" @@`
-	Constraints    *SchemaItem         `| "CONSTRAINTS" "ON" @@`
+	Database       *Database    `"DATABASE" @@`
+	Roles          *Roles       `| "ROLES" @@`
+	Extensions     *Extensions  `| "EXTENSIONS" @@`
+	ForeignKeys    *ForeignKeys `| ("FOREIGN" "KEYS") @@`
+	Schema         *Name        `| "SCHEMA" @@`
+	TablesInSchema *Name        `| "TABLES" "IN" @@`
+	ViewsInSchema  *Name        `| "VIEWS" "IN" @@`
+	Table          *SchemaItem  `| "TABLE" @@`
+	View           *SchemaItem  `| "VIEW" @@`
+	Indexes        *SchemaItem  `| "INDEXES" "ON" @@`
+	Constraints    *SchemaItem  `| "CONSTRAINTS" "ON" @@`
 }
 
 // Database contains details for action on a database.
@@ -49,13 +49,6 @@ type Extensions struct {
 // ForeignKeys contains details for action on a foreign keys.
 type ForeignKeys struct {
 	Ref *Ref `[@@]`
-}
-
-// TableOrViewSubject contains the schema and table or view when it is the subject of the command.
-type TableOrViewSubject struct {
-	TableOrView string `@Ident`
-	Schema      string `"IN" @Ident`
-	Ref         *Ref   `[@@]`
 }
 
 // SchemaItem contains the schema and table or view when it is the object of the command.
@@ -184,18 +177,35 @@ func parse(command string) (*DDSL, error) {
 			trimmedSql := strings.Trim(sql, "`")
 			tree.Sql = &trimmedSql
 		}
-		if tree.Create != nil && tree.Create.Indexes != nil {
-			tree.Create.Indexes.populate()
+		if tree.Create != nil {
+			if tree.Create.Table != nil {
+				tree.Create.Table.populate()
+			}
+			if tree.Create.View != nil {
+				tree.Create.View.populate()
+			}
+			if tree.Create.Indexes != nil {
+				tree.Create.Indexes.populate()
+			}
+			if tree.Create.Constraints != nil {
+				tree.Create.Constraints.populate()
+			}
 		}
-		if tree.Create != nil && tree.Create.Constraints != nil {
-			tree.Create.Constraints.populate()
+		if tree.Drop != nil {
+			if tree.Drop.Table != nil {
+				tree.Drop.Table.populate()
+			}
+			if tree.Drop.View != nil {
+				tree.Drop.View.populate()
+			}
+			if tree.Drop.Indexes != nil {
+				tree.Drop.Indexes.populate()
+			}
+			if tree.Drop.Constraints != nil {
+				tree.Drop.Constraints.populate()
+			}
 		}
-		if tree.Drop != nil && tree.Drop.Indexes != nil {
-			tree.Drop.Indexes.populate()
-		}
-		if tree.Drop != nil && tree.Drop.Constraints != nil {
-			tree.Drop.Constraints.populate()
-		}
+
 	}
 	return tree, err
 
