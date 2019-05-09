@@ -1,0 +1,1 @@
+drop schema foo_schema @tags.v2

@@ -1,0 +1,1 @@
+drop view foo_schema.foo_view @tags.v3

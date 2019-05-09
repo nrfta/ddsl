@@ -1,0 +1,4 @@
+-- do not drop roles as they may be used by other databases
+drop extensions @tags.v1
+drop database @tags.v1
+

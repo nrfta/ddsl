@@ -1,0 +1,3 @@
+create roles @tags.v1
+create extensions @tags.v1
+create database @tags.v1

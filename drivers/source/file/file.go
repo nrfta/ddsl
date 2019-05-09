@@ -37,6 +37,10 @@ func (f *File) Open(url string) (source.Driver, error) {
 		p = u.Host + u.Path
 	}
 
+	if len(u.Fragment) > 0 {
+		p += "#" + u.Fragment
+	}
+
 	if len(p) == 0 {
 		// default to current directory if no path
 		wd, err := os.Getwd()
