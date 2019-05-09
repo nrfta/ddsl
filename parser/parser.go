@@ -73,14 +73,14 @@ type Ref struct {
 type Migrate struct {
 	Top    bool `@"TOP"`
 	Bottom bool `| @"BOTTOM"`
-	Up     int  `| "UP" @Int`
-	Down   int  `| "DOWN" @Int`
+	Up     *int `| "UP" @Int`
+	Down   *int `| "DOWN" @Int`
 }
 
 var (
 	re = `(\s+)` +
 		`|(?P<Keyword>(?i)CREATE|DROP|DATABASE|ROLES|EXTENSIONS|FOREIGN|KEYS|SCHEMA|TABLES|TABLE|VIEWS|VIEW|INDEXES|CONSTRAINTS|IN|ON|MIGRATE|TOP|BOTTOM|UP|DOWN|SQL)` +
-		// TODO: make schema optional and just have term after the dot (public schema)
+	// TODO: make schema optional and just have term after the dot (public schema)
 		`|(?P<SchemaItem>[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)` +
 		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
 		"|(?P<Sql>(?s)`(.|\\n)*`)" +

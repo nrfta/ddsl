@@ -19,6 +19,7 @@ type executor struct {
 	repo         string
 	sourceDriver source.Driver
 	dbDriver     database.Driver
+	dbURL		 string
 	databaseName string
 	parseTree    *parser.DDSL
 	createOrDrop string
@@ -42,6 +43,7 @@ func Execute(repo string, dbURL string, command string) error {
 		ex := &executor{
 			repo:      repo,
 			dbDriver:  dbDriver,
+			dbURL:     dbURL,
 			parseTree: t,
 		}
 		if err := execute(ex); err != nil {
@@ -101,9 +103,9 @@ func execute(ex *executor) error {
 		ex.createOrDrop = "drop"
 		return executeCreateOrDrop(ex)
 	case ex.parseTree.Migrate != nil:
-		return executeMigrate(ex)
+		return executeMigrate(ex, ex.parseTree.Migrate)
 	case ex.parseTree.Sql != nil:
-		return executeSql(ex)
+		return ex.dbDriver.Exec(strings.NewReader(*ex.parseTree.Sql))
 	}
 
 	return errors.New("unknown command")
@@ -119,7 +121,7 @@ func (ex *executor) getSourceDriver(ref *parser.Ref) error {
 	ex.databaseName = url[i+1:]
 
 	if ref != nil {
-		url += "#" + ref.Ref
+		url += "#" + strings.TrimLeft(ref.Ref,"@")
 	}
 	sourceDriver, err := source.Open(url)
 	if err != nil {
