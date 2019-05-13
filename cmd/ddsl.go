@@ -3,10 +3,12 @@ package cmd
 import (
 	"github.com/neighborly/ddsl/exec"
 	"io/ioutil"
+	"strings"
 )
 
 func runCommand(repo string, url string, command string) (exitCode int, err error) {
-	if err := exec.Execute(repo, url, command); err != nil {
+	cmd := strings.Replace(command, ";", "\n", -1)
+	if err := exec.Execute(repo, url, cmd); err != nil {
 		return 1, err
 	}
 
