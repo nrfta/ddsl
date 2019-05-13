@@ -2,6 +2,7 @@ package exec
 
 import (
 	"errors"
+	"fmt"
 	"github.com/neighborly/ddsl/drivers/database"
 	"github.com/neighborly/ddsl/drivers/database/postgres"
 	"github.com/neighborly/ddsl/drivers/source"
@@ -145,7 +146,12 @@ func (ex *executor) execute(pathPattern string, ref *parser.Ref) error {
 		return err
 	}
 
+	if len(readers) == 0 {
+		fmt.Printf("%s: no source files found\n", pathPattern)
+	}
+
 	for _, fr := range readers {
+		fmt.Printf("executing %s\n", fr.FilePath)
 		err = ex.dbDriver.Exec(fr.Reader)
 		if err != nil {
 			return err
