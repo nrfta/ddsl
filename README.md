@@ -33,13 +33,25 @@ The usage can be shortend by setting environment variables.
 
 ## Command Syntax
 
-All commands accept a final token of `@git_tag` which will run the command against that version of the DDL reposititory.
+All commands exception `MIGRATE` and `SQL` accept a final token of `@git_tag` which will run the command against that version of the DDL reposititory.
+
+Commands may be separated by a semicolon.
+
+## Databases
+
+Databases cannot be created within a transaction on certain RDSs such as Postgres. When creating a database from scratch,
+the recommended order of operations is:
+
+1. `CREATE ROLES`
+2. `CREATE DATABASE` 
+3. `CREATE EXTENSIONS; CREATE SCHEMAS`    
 
 ### CREATE
 ```
 CREATE DATABASE
 CREATE ROLES
 CREATE EXTENSIONS
+CREATE SCHEMAS
 CREATE FOREIGN KEYS
 CREATE SCHEMA foo 
 CREATE TABLES IN foo 
@@ -55,6 +67,7 @@ CREATE CONSTRAINTS ON foo.cat @v1.2
 DROP DATABASE
 DROP ROLES
 DROP EXTENSIONS
+DROP SCHEMAS
 DROP FOREIGN KEYS
 DROP SCHEMA foo
 DROP TABLES IN foo

@@ -21,6 +21,7 @@ type Command struct {
 	Database       *Database    `"DATABASE" @@`
 	Roles          *Roles       `| "ROLES" @@`
 	Extensions     *Extensions  `| "EXTENSIONS" @@`
+	Schemas        *Schemas     `| "SCHEMAS" @@`
 	ForeignKeys    *ForeignKeys `| ("FOREIGN" "KEYS") @@`
 	Schema         *Name        `| "SCHEMA" @@`
 	TablesInSchema *Name        `| "TABLES" "IN" @@`
@@ -43,6 +44,11 @@ type Roles struct {
 
 // Extensions contains details for action on extensions.
 type Extensions struct {
+	Ref *Ref `[@@]`
+}
+
+// Schemas contains details for action on schemas.
+type Schemas struct {
 	Ref *Ref `[@@]`
 }
 
@@ -79,7 +85,7 @@ type Migrate struct {
 
 var (
 	re = `(\s+)` +
-		`|(?P<Keyword>(?i)CREATE|DROP|DATABASE|ROLES|EXTENSIONS|FOREIGN|KEYS|SCHEMA|TABLES|TABLE|VIEWS|VIEW|INDEXES|CONSTRAINTS|IN|ON|MIGRATE|TOP|BOTTOM|UP|DOWN|SQL)` +
+		`|(?P<Keyword>(?i)CREATE|DROP|DATABASE|ROLES|EXTENSIONS|SCHEMAS|FOREIGN|KEYS|SCHEMA|TABLES|TABLE|VIEWS|VIEW|INDEXES|CONSTRAINTS|IN|ON|MIGRATE|TOP|BOTTOM|UP|DOWN|SQL)` +
 	// TODO: make schema optional and just have term after the dot (public schema)
 		`|(?P<SchemaItem>[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)` +
 		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +

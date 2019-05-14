@@ -137,6 +137,14 @@ func (f *File) ReadFiles(relativeDir string, fileNamePattern string) (files []*s
 	return dr.FileReaders, nil
 }
 
+func (f *File) ReadDirectories(relativeDir string, dirNamePattern string) (files []*source.DirectoryReader, err error) {
+	dr, err := f.readDirectory(relativeDir, dirNamePattern, false)
+	if err != nil {
+		return nil, err
+	}
+	return dr.SubDirectories, nil
+}
+
 func (f *File) ReadTree(relativeDir string, fileNamePattern string) (tree *source.DirectoryReader, err error) {
 	return f.readDirectory(relativeDir, fileNamePattern, true)
 }
