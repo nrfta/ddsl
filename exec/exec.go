@@ -3,11 +3,12 @@ package exec
 import (
 	"errors"
 	"fmt"
-	"github.com/neighborly/ddsl/drivers/database"
+	dbdr "github.com/neighborly/ddsl/drivers/database"
 	"github.com/neighborly/ddsl/drivers/database/postgres"
 	"github.com/neighborly/ddsl/drivers/source"
 	"github.com/neighborly/ddsl/drivers/source/file"
 	"github.com/neighborly/ddsl/parser"
+	"path"
 	"strings"
 )
 
@@ -19,12 +20,17 @@ func init() {
 type executor struct {
 	repo         string
 	sourceDriver source.Driver
-	dbDriver     database.Driver
+	dbDriver     dbdr.Driver
 	dbURL		 string
 	databaseName string
 	parseTree    *parser.DDSL
 	createOrDrop string
 }
+
+const (
+	create string = "create"
+	drop   string = "drop"
+)
 
 func Execute(repo string, dbURL string, command string) error {
 	trees, err := parser.Parse(command)
@@ -32,7 +38,7 @@ func Execute(repo string, dbURL string, command string) error {
 		return err
 	}
 
-	dbDriver, err := database.Open(dbURL)
+	dbDriver, err := dbdr.Open(dbURL)
 	if err != nil {
 		return err
 	}
@@ -40,6 +46,9 @@ func Execute(repo string, dbURL string, command string) error {
 
 	// database commands cannot run in transaction
 	cmds := getDatabaseCommands(trees)
+	if len(cmds) > 0 {
+		fmt.Println("[INFO] running database commands, transaction not possible")
+	}
 	for _, t := range cmds {
 		ex := &executor{
 			repo:      repo,
@@ -52,15 +61,26 @@ func Execute(repo string, dbURL string, command string) error {
 		}
 	}
 
-	err = dbDriver.Begin()
-	if err != nil {
-		return err
-	}
+	cmds = []*parser.DDSL{}
 
 	for _, t := range trees {
 		if isDatabaseCommand(t) {
 			continue
 		}
+		cmds = append(cmds, t)
+	}
+
+	if len(cmds) == 0 {
+		return nil
+	}
+
+	fmt.Println("[INFO] beginning transaction")
+	err = dbDriver.Begin()
+	if err != nil {
+		return err
+	}
+
+	for _, t := range cmds {
 
 		ex := &executor{
 			repo:      repo,
@@ -68,11 +88,13 @@ func Execute(repo string, dbURL string, command string) error {
 			parseTree: t,
 		}
 		if err := execute(ex); err != nil {
+			fmt.Println("[WARN] rolling back transaction")
 			_ = dbDriver.Rollback()
 			return err
 		}
 	}
 
+	fmt.Println("[INFO] committing transaction")
 	if err = dbDriver.Commit(); err != nil {
 		return err
 	}
@@ -98,10 +120,10 @@ func isDatabaseCommand(t *parser.DDSL) bool {
 func execute(ex *executor) error {
 	switch {
 	case ex.parseTree.Create != nil:
-		ex.createOrDrop = "create"
+		ex.createOrDrop = create
 		return executeCreateOrDrop(ex)
 	case ex.parseTree.Drop != nil:
-		ex.createOrDrop = "drop"
+		ex.createOrDrop = drop
 		return executeCreateOrDrop(ex)
 	case ex.parseTree.Migrate != nil:
 		return executeMigrate(ex, ex.parseTree.Migrate)
@@ -147,11 +169,11 @@ func (ex *executor) execute(pathPattern string, ref *parser.Ref) error {
 	}
 
 	if len(readers) == 0 {
-		fmt.Printf("%s: no source files found\n", pathPattern)
+		fmt.Printf("[INFO] %s: no source files found\n", pathPattern)
 	}
 
 	for _, fr := range readers {
-		fmt.Printf("executing %s\n", fr.FilePath)
+		fmt.Printf("[INFO] executing %s\n", fr.FilePath)
 		err = ex.dbDriver.Exec(fr.Reader)
 		if err != nil {
 			return err
@@ -159,6 +181,25 @@ func (ex *executor) execute(pathPattern string, ref *parser.Ref) error {
 	}
 
 	return nil
+}
+
+func (ex *executor) getSchemaNames(ref *parser.Ref) ([]string, error) {
+	if err := ex.getSourceDriver(ref); err != nil {
+		return nil, err
+	}
+	defer ex.sourceDriver.Close()
+
+	dirReaders, err := ex.sourceDriver.ReadDirectories("schemas", ".*")
+	if err != nil {
+		return nil, err
+	}
+
+	schemaNames := []string{}
+	for _, dr := range dirReaders {
+		schemaNames = append(schemaNames, path.Base(dr.DirectoryPath))
+	}
+
+	return schemaNames, nil
 }
 
 func getRelativePathAndFilePattern(path string) (relativePath string, filePattern string) {

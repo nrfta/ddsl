@@ -12,6 +12,7 @@ func TestParser(t *testing.T) {
 		create DaTaBaSe
 		create roles @tags/v1.3
 		create extensions
+		crate schemas
 		create foreign keys @33fda2f3
 		create schema foo
 		create tables in foo @vtags/v1.3
@@ -24,6 +25,7 @@ func TestParser(t *testing.T) {
 		drop database @tags/v1.3
 		drop roles
 		drop extensions @33fda2f3
+		drop schemas
 		drop foreign keys
 		drop schema foo @tags/v1.3
 		drop tables in foo

@@ -45,14 +45,14 @@ Make ddsl file executable with "chmod +x file.ddsl" and adding shebang:
 			os.Exit(0)
 
 		case len(command) > 0 && len(file) > 0:
-			fmt.Println("File and command arguments cannot be used together")
+			fmt.Println("[ERROR] file and command arguments cannot be used together")
 			os.Exit(1)
 
 		case len(command) > 0:
 			ensureArgs(src, db)
 			exitCode, err := runCommand(src, db, command)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("[ERROR] %s", err)
 			}
 			os.Exit(exitCode)
 
@@ -65,7 +65,7 @@ Make ddsl file executable with "chmod +x file.ddsl" and adding shebang:
 			os.Exit(exitCode)
 
 		default:
-			fmt.Println("Unknown usage")
+			fmt.Println("[ERROR] unknown usage")
 			cmd.Usage()
 			os.Exit(1)
 		}

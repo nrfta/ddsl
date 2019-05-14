@@ -44,6 +44,10 @@ type Driver interface {
 	// that match the given pattern. Returns `nil` if relative path does not exist.
 	ReadFiles(relativeDir string, fileNamePattern string) (files []*FileReader, err error)
 
+	// ReadDirectories returns `DirectoryReader` slice for the directories at the given relative directory
+	// that match the given pattern. Returns `nil` if relative path does not exist.
+	ReadDirectories(relativeDir string, dirNamePattern string) (files []*DirectoryReader, err error)
+
 	// ReadTree returns a `DirectoryReader` for directory at the given relative path
 	// with the `SubDirectories` member recursively populated. Returns `nil` if the path
 	// does not exist.
