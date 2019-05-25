@@ -10,6 +10,8 @@ import (
 var bottomCmd = &cobra.Command{
 	Use:   "bottom",
 	Short: "Migrates the database to the earliest version",
+	Long: `Example:
+  migrate bottom`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("bottom called")
 	},

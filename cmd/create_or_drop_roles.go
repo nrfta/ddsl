@@ -13,8 +13,8 @@ var rolesCmd = &cobra.Command{
 	Long: `Use caution: roles may be shared across databases.
 
 Examples:
-  ddsl create roles
-  ddsl drop roles`,
+  create roles
+  drop roles`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("roles called")
 	},

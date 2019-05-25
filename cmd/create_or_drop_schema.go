@@ -11,8 +11,8 @@ var schemaCmd = &cobra.Command{
 	Use:   "schema",
 	Short: "Create or drop a given schema",
 	Long: `Examples:
-  ddsl create schema this_schema
-  ddsl drop schema that_schema`,
+  create schema this_schema
+  drop schema that_schema`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("schema called")
 	},

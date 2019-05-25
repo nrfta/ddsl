@@ -10,7 +10,7 @@ import (
 var constraintsCmd = &cobra.Command{
 	Use:   "constraints",
 	Short: "Create or drop constraints on a given table",
-	Long: `Usage: ddsl ( create | drop ) constraints [on] <table_name>
+	Long: `Usage: ( create | drop ) constraints [on] <table_name>
 
 Examples:
   ddsl create constraints on this_schema.this_table

@@ -25,18 +25,21 @@ var (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "ddsl [OPTIONS] [COMMAND]",
-	Short: `Data-Definition-Specific Language (DDSL, pronounced "diesel") provides a scripting language for DDL and 
-migrations.`,
-	Long: `ddsl executes commands written in DDSL. Commands can either be one-off or stored in a ddsl file. 
-In addition, ddsl files may made directly executable.
+	Short: `Data-Definition-Specific Language (DDSL, pronounced "diesel") 
+provides a scripting language for DDL and migrations.`,
+	Long: `ddsl executes commands written in DDSL. Commands can either be
+one-off or stored in a ddsl file. In addition, ddsl files may made directly
+executable.
 
 Run ddsl commands:
-    ddsl [OPTIONS] COMMAND1; COMMAND2
+    ddsl [OPTIONS] COMMAND1
 
 Run commands from a ddsl file:
     ddsl [OPTIONS] -f /path/to/file.ddsl
 
-Make ddsl file executable with "chmod +x file.ddsl" and adding shebang. Requires environment variables to set options.
+Make ddsl file executable with "chmod +x file.ddsl" and adding shebang.
+Requires environment variables to set options. The "ddsl" command is
+omitted from the beginning of each line.
     #!/usr/bin/env ddsl
     COMMAND
 	COMMAND

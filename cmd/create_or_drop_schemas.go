@@ -10,7 +10,7 @@ import (
 var schemasCmd = &cobra.Command{
 	Use:   "schemas",
 	Short: "Create or drop all schemas in the database",
-	Long: `Usage: ddsl ( create | drop ) schemas [ -N <exclude_schema_name> ... ]
+	Long: `Usage: ( create | drop ) schemas [ -N <exclude_schema_name> ... ]
 
 Examples:
   create schemas
