@@ -11,24 +11,32 @@ import (
 // Set this value using the Go linker based on git tag. See https://stackoverflow.com/a/11355611
 var appVersion string
 
-var version bool
-var command string
-var file string
-
+var (
+	version bool
+	command string
+	file string
+	schemas []string
+	tables []string
+	views []string
+	excludeSchemas []string
+	excludeTables []string
+	excludeViews []string
+)
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "ddsl [OPTIONS] [COMMAND]",
-	Short: `Data-Definition-Specific Language (DDSL, pronounced "diesel") provides a scripting language for DDL and migrations.`,
+	Short: `Data-Definition-Specific Language (DDSL, pronounced "diesel") provides a scripting language for DDL and 
+migrations.`,
 	Long: `ddsl executes commands written in DDSL. Commands can either be one-off or stored in a ddsl file. 
 In addition, ddsl files may made directly executable.
 
-Run a one-off command:
-    ddsl [OPTIONS] -c "COMMAND"
+Run ddsl commands:
+    ddsl [OPTIONS] COMMAND1; COMMAND2
 
 Run commands from a ddsl file:
     ddsl [OPTIONS] -f /path/to/file.ddsl
 
-Make ddsl file executable with "chmod +x file.ddsl" and adding shebang:
+Make ddsl file executable with "chmod +x file.ddsl" and adding shebang. Requires environment variables to set options.
     #!/usr/bin/env ddsl
     COMMAND
 	COMMAND
@@ -43,18 +51,6 @@ Make ddsl file executable with "chmod +x file.ddsl" and adding shebang:
 		case version:
 			fmt.Println("ddsl version", appVersion)
 			os.Exit(0)
-
-		case len(command) > 0 && len(file) > 0:
-			fmt.Println("[ERROR] file and command arguments cannot be used together")
-			os.Exit(1)
-
-		case len(command) > 0:
-			ensureArgs(src, db)
-			exitCode, err := runCommand(src, db, command)
-			if err != nil {
-				fmt.Printf("[ERROR] %s", err)
-			}
-			os.Exit(exitCode)
 
 		case len(file) > 0:
 			ensureArgs(src, db)
@@ -106,13 +102,47 @@ func init() {
 	viper.BindPFlag("database", rootCmd.PersistentFlags().Lookup("database"))
 
 	rootCmd.Flags().BoolVar(&version, "version", false, "show version number and exit")
-	rootCmd.Flags().StringVarP(&command, "command", "c", "", "DDSL command to run")
 	rootCmd.Flags().StringVarP(&file, "file", "f", "", "file containing DDSL commands")
 
-	rootCmd.PersistentFlags().BoolP("dry-run", "r", false, "make no changes, only show what would be done")
-	viper.BindPFlag("dry_run", rootCmd.PersistentFlags().Lookup("dry-run"))
-
 }
+
+func addCreateOrDropSubCmds(createOrDropCmd *cobra.Command) {
+	createOrDropCmd.AddCommand(databaseCmd)
+	createOrDropCmd.AddCommand(rolesCmd)
+	createOrDropCmd.AddCommand(extensionsCmd)
+	createOrDropCmd.AddCommand(foreignKeysCmd)
+	createOrDropCmd.AddCommand(schemasCmd)
+	createOrDropCmd.AddCommand(typesCmd)
+	createOrDropCmd.AddCommand(schemaCmd)
+	createOrDropCmd.AddCommand(tablesCmd)
+	createOrDropCmd.AddCommand(viewsCmd)
+	createOrDropCmd.AddCommand(tableCmd)
+	createOrDropCmd.AddCommand(viewCmd)
+	createOrDropCmd.AddCommand(constraintsCmd)
+	createOrDropCmd.AddCommand(indexesCmd)
+}
+
+func defineTableFlag(command *cobra.Command) {
+	command.PersistentFlags().StringSliceVarP(&tables,"table", "t", nil, "table to operate upon with schema optionally specified ([schema.]table). Can be specified more than once.")
+}
+func defineExcludeTableFlag(command *cobra.Command) {
+	command.PersistentFlags().StringSliceVarP(&excludeTables,"exclude-table", "T", nil, "table to exclude with schema optionally specified ([schema.]table). Can be specified more than once.")
+}
+
+func defineViewFlag(command *cobra.Command) {
+	command.PersistentFlags().StringSliceVarP(&views, "view", "w", nil, "view to operate upon with schema optionally specified ([schema.]view). Can be specified more than once.")
+}
+func defineExcludeViewFlag(command *cobra.Command) {
+	command.PersistentFlags().StringSliceVarP(&excludeViews,"exclude-view", "W", nil, "view to exclude with schema optionally specified ([schema.]view). Can be specified more than once.")
+}
+
+func defineSchemaFlag(command *cobra.Command) {
+	command.PersistentFlags().StringSliceVarP(&schemas,"schema", "n", nil, "schema to operate upon")
+}
+func defineExcludeSchemaFlag(command *cobra.Command) {
+	command.PersistentFlags().StringSliceVarP(&excludeSchemas,"exclude-schema", "N", nil, "schema to exclude")
+}
+
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
