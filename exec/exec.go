@@ -8,6 +8,7 @@ import (
 	"github.com/neighborly/ddsl/drivers/source"
 	"github.com/neighborly/ddsl/drivers/source/file"
 	"github.com/neighborly/ddsl/parser"
+	"github.com/spf13/viper"
 	"path"
 	"strings"
 )
@@ -21,7 +22,7 @@ type executor struct {
 	repo         string
 	sourceDriver source.Driver
 	dbDriver     dbdr.Driver
-	dbURL		 string
+	dbURL        string
 	databaseName string
 	parseTree    *parser.DDSL
 	createOrDrop string
@@ -74,10 +75,16 @@ func Execute(repo string, dbURL string, command string) error {
 		return nil
 	}
 
-	fmt.Println("[INFO] beginning transaction")
-	err = dbDriver.Begin()
-	if err != nil {
-		return err
+	dryRun := viper.GetBool("dry_run")
+
+	if dryRun {
+		fmt.Println("[DRY-RUN] would begin transaction")
+	} else {
+		fmt.Println("[INFO] beginning transaction")
+		err = dbDriver.Begin()
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, t := range cmds {
@@ -88,18 +95,23 @@ func Execute(repo string, dbURL string, command string) error {
 			parseTree: t,
 		}
 		if err := execute(ex); err != nil {
+			if dryRun {
+				fmt.Println("[DRY-RUN] would rollback transaction")
+				return err
+			}
 			fmt.Println("[WARN] rolling back transaction")
 			_ = dbDriver.Rollback()
 			return err
 		}
 	}
 
-	fmt.Println("[INFO] committing transaction")
-	if err = dbDriver.Commit(); err != nil {
-		return err
+	if dryRun {
+		fmt.Println("[DRY-RUN] would commit transaction")
+		return nil
 	}
 
-	return nil
+	fmt.Println("[INFO] committing transaction")
+	return dbDriver.Commit()
 }
 
 func getDatabaseCommands(trees []*parser.DDSL) []*parser.DDSL {
@@ -128,6 +140,11 @@ func execute(ex *executor) error {
 	case ex.parseTree.Migrate != nil:
 		return executeMigrate(ex, ex.parseTree.Migrate)
 	case ex.parseTree.Sql != nil:
+		if viper.GetBool("dry_run") {
+			fmt.Println("[DRY-RUN] would execute SQL statement")
+			return nil
+		}
+		fmt.Println("[INFO] executing SQL statement")
 		return ex.dbDriver.Exec(strings.NewReader(*ex.parseTree.Sql))
 	}
 
@@ -144,7 +161,7 @@ func (ex *executor) getSourceDriver(ref *parser.Ref) error {
 	ex.databaseName = url[i+1:]
 
 	if ref != nil {
-		url += "#" + strings.TrimLeft(ref.Ref,"@")
+		url += "#" + strings.TrimLeft(ref.Ref, "@")
 	}
 	sourceDriver, err := source.Open(url)
 	if err != nil {
@@ -168,11 +185,13 @@ func (ex *executor) execute(pathPattern string, ref *parser.Ref) error {
 		return err
 	}
 
-	if len(readers) == 0 {
-		fmt.Printf("[INFO] %s: no source files found\n", pathPattern)
-	}
+	dryRun := viper.GetBool("dry_run")
 
 	for _, fr := range readers {
+		if dryRun {
+			fmt.Printf("[DRY-RUN] would execute %s\n", fr.FilePath)
+			continue
+		}
 		fmt.Printf("[INFO] executing %s\n", fr.FilePath)
 		err = ex.dbDriver.Exec(fr.Reader)
 		if err != nil {
@@ -212,4 +231,3 @@ func getRelativePathAndFilePattern(path string) (relativePath string, filePatter
 
 	return p[:i], p[i+1:]
 }
-
