@@ -105,9 +105,12 @@ func init() {
 	rootCmd.PersistentFlags().StringP("database", "d", "", "URL for RDS and database (default DDSL_DATABASE)")
 	viper.BindPFlag("database", rootCmd.PersistentFlags().Lookup("database"))
 
-	rootCmd.PersistentFlags().BoolVar(&version, "version", false, "show version number and exit")
-	rootCmd.PersistentFlags().StringVarP(&command, "command", "c", "", "DDSL command to run")
-	rootCmd.PersistentFlags().StringVarP(&file, "file", "f", "", "file containing DDSL commands")
+	rootCmd.Flags().BoolVar(&version, "version", false, "show version number and exit")
+	rootCmd.Flags().StringVarP(&command, "command", "c", "", "DDSL command to run")
+	rootCmd.Flags().StringVarP(&file, "file", "f", "", "file containing DDSL commands")
+
+	rootCmd.PersistentFlags().BoolP("dry-run", "r", false, "make no changes, only show what would be done")
+	viper.BindPFlag("dry_run", rootCmd.PersistentFlags().Lookup("dry-run"))
 
 }
 
