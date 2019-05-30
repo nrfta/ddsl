@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
 )
@@ -9,9 +10,9 @@ import (
 // bottomCmd represents the bottom command
 var bottomCmd = &cobra.Command{
 	Use:   "bottom",
-	Short: "Migrates the database to the earliest version",
+	Short: parser.ShortDesc("migrate bottom"),
 	Long: `Example:
-  migrate bottom`,
+  migrate bottom;`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("bottom called")
 	},

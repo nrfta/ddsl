@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
 )
@@ -11,9 +12,9 @@ var downNumVersions uint
 // downCmd represents the down command
 var downCmd = &cobra.Command{
 	Use:   "down",
-	Short: "Migrates the database down a given number of versions",
+	Short: parser.ShortDesc("migrate down"),
 	Long: `Examples:
-  migrate down -n 2`,
+  migrate down -n 2;`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("down called")
 	},

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
 )
@@ -9,10 +10,12 @@ import (
 // tableCmd represents the table command
 var tableCmd = &cobra.Command{
 	Use:   "table",
-	Short: "Create or drop a given table",
-	Long: `Examples:
-  create table this_schema.this_table
-  drop table that_schema.that_table`,
+	Short: parser.ShortDesc("create table"),
+	Long: `Usage: ( create | drop ) table <table_name>[,<table_name> ...];
+
+Examples:
+  create table this_schema.this_table;
+  drop table that_schema.that_table,other_schema.other_table;`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("table called")
 	},

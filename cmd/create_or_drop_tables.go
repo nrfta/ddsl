@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
 )
@@ -9,17 +10,17 @@ import (
 // tablesCmd represents the tables command
 var tablesCmd = &cobra.Command{
 	Use:   "tables",
-	Short: "Create or drop tables in a given schema",
-	Long: `Usage: ( create | drop ) tables [in] <schema_name> [ -T <exclude_table_name> ...]
+	Short: parser.ShortDesc("create tables"),
+	Long: `Usage: ( create | drop ) tables [[ ( in | except [in] ) ] <schema_name>[,<schema_name> ...]];
 
 Examples:
-  create tables in this_schema
-  drop tables that_schema -T not_that_table`,
+  create tables;
+  create tables in this_schema;
+  create tables except in that_schema;
+  drop tables;
+  drop tables that_schema,other_schema;
+  drop tables except other_schema;`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("tables called")
 	},
-}
-
-func init() {
-	defineExcludeTableFlag(tablesCmd)
 }

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func runCommand(repo string, url string, command string) (exitCode int, err error) {
+func RunCommand(repo string, url string, command string) (exitCode int, err error) {
 	cmds := strings.Split(command, ";")
 	for _, cmd := range cmds {
 		fmt.Printf("[INFO] *** command: %s ***\n", cmd)
@@ -26,5 +26,5 @@ func runFile(repo string, url string, file string) (exitCode int, err error) {
 
 	command = string(commandBytes)
 
-	return runCommand(repo, url, command)
+	return RunCommand(repo, url, command)
 }

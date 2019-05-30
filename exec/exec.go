@@ -7,6 +7,7 @@ import (
 	"github.com/neighborly/ddsl/drivers/database/postgres"
 	"github.com/neighborly/ddsl/drivers/source"
 	"github.com/neighborly/ddsl/drivers/source/file"
+	"github.com/neighborly/ddsl/log"
 	"github.com/neighborly/ddsl/parser"
 	"github.com/spf13/viper"
 	"path"
@@ -19,12 +20,11 @@ func init() {
 }
 
 type executor struct {
-	repo         string
+	ctx *Context
 	sourceDriver source.Driver
 	dbDriver     dbdr.Driver
-	dbURL        string
 	databaseName string
-	parseTree    *parser.DDSL
+	cmdDef *parser.CommandDef
 	createOrDrop string
 }
 
@@ -33,13 +33,13 @@ const (
 	drop   string = "drop"
 )
 
-func Execute(repo string, dbURL string, command string) error {
-	trees, err := parser.Parse(command)
+func Execute(ctx *Context, command string) error {
+	cmdDef, err := parser.Parse(command)
 	if err != nil {
 		return err
 	}
 
-	dbDriver, err := dbdr.Open(dbURL)
+	dbDriver, err := dbdr.Open(ctx.DatbaseUrl)
 	if err != nil {
 		return err
 	}
@@ -48,34 +48,21 @@ func Execute(repo string, dbURL string, command string) error {
 	count := 0
 
 	// database commands cannot run in transaction
-	cmds := getDatabaseCommands(trees)
-	if len(cmds) > 0 {
-		fmt.Println("[INFO] running database commands, transaction not possible")
-	}
-	for _, t := range cmds {
-		ex := &executor{
-			repo:      repo,
-			dbDriver:  dbDriver,
-			dbURL:     dbURL,
-			parseTree: t,
+	isDatabaseCommand := cmdDef.Name == "database" && (cmdDef.Parent.Name == "create" || cmdDef.Parent.Name == "drop")
+	if isDatabaseCommand {
+		if ctx.inTransaction {
+			return fmt.Errorf("database commands cannot be run within a transaction")
 		}
-		c, err := execute(ex)
+		ex := &executor{
+			ctx: ctx,
+			dbDriver:  dbDriver,
+			cmdDef: cmdDef,
+		}
+		c, err := ex.execute()
 		count += c
 		if err != nil {
 			return err
 		}
-	}
-
-	cmds = []*parser.DDSL{}
-
-	for _, t := range trees {
-		if isDatabaseCommand(t) {
-			continue
-		}
-		cmds = append(cmds, t)
-	}
-
-	if len(cmds) == 0 {
 		return nil
 	}
 
@@ -85,90 +72,71 @@ func Execute(repo string, dbURL string, command string) error {
 	if dryRun {
 		logLevel = "DRY-RUN"
 	}
-	fmt.Printf("[%s] beginning transaction\n", logLevel)
 
-	if !dryRun {
-		err = dbDriver.Begin()
-		if err != nil {
+	if ctx.AutoTransaction {
+		log.log(logLevel, "beginning transaction")
+		if !dryRun {
+			err = dbDriver.Begin()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	ex := &executor{
+		ctx: ctx,
+		dbDriver: dbDriver,
+		cmdDef: cmdDef,
+	}
+
+	c, err := ex.execute()
+	count += c
+	if err != nil {
+		logLevel = "WARN"
+		if dryRun {
+			logLevel = "DRY-RUN"
+		}
+		log.log(logLevel, "rolling back transaction\n", logLevel)
+		if !dryRun {
+			_ = dbDriver.Rollback()
+		}
+		return err
+	}
+
+	if ctx.AutoTransaction {
+		log.log(logLevel, "committing transaction")
+		if err = dbDriver.Commit(); err != nil {
 			return err
 		}
 	}
-
-	for _, t := range cmds {
-
-		ex := &executor{
-			repo:      repo,
-			dbDriver:  dbDriver,
-			parseTree: t,
-		}
-
-		c, err := execute(ex)
-		count += c
-		if err != nil {
-			logLevel = "WARN"
-			if dryRun {
-				logLevel = "DRY-RUN"
-			}
-			fmt.Printf("[%s] rolling back transaction\n", logLevel)
-			if !dryRun {
-				_ = dbDriver.Rollback()
-			}
-			return err
-		}
-	}
-
-	logLevel = "INFO"
-	if dryRun {
-		logLevel = "DRY-RUN"
-	}
-	fmt.Printf("[%s] committing transaction\n", logLevel)
 
 	if count == 0 {
-		fmt.Println("[WARN] *** command did nothing; no files matched ***")
+		log.Warn("*** command did nothing; no files matched ***")
 	} else {
-		fmt.Printf("[INFO] *** %d files processed ***\n", count)
+		log.Info("*** %d files processed ***\n", count)
 	}
 
-	if dryRun {
-		return nil
-	}
-	return dbDriver.Commit()
+	return nil
 }
 
-func getDatabaseCommands(trees []*parser.DDSL) []*parser.DDSL {
-	cmds := []*parser.DDSL{}
-
-	for _, t := range trees {
-		if isDatabaseCommand(t) {
-			cmds = append(cmds, t)
-		}
-	}
-	return cmds
-}
-
-func isDatabaseCommand(t *parser.DDSL) bool {
-	return (t.Create != nil && t.Create.Database != nil) || (t.Drop != nil && t.Drop.Database != nil)
-}
-
-func execute(ex *executor) (int, error) {
-	switch {
-	case ex.parseTree.Create != nil:
+func (ex *executor) execute() (int, error) {
+	topCmd := ex.cmdDef.ParentAtLevel(1)
+	switch topCmd.Name {
+	case create:
 		ex.createOrDrop = create
-		return executeCreateOrDrop(ex)
-	case ex.parseTree.Drop != nil:
+		return ex.executeCreateOrDrop()
+	case drop:
 		ex.createOrDrop = drop
-		return executeCreateOrDrop(ex)
-	case ex.parseTree.Seed != nil:
-		return executeSeed(ex)
-	case ex.parseTree.Migrate != nil:
-		return executeMigrate(ex, ex.parseTree.Migrate)
-	case ex.parseTree.Sql != nil:
+		return ex.executeCreateOrDrop()
+	case "migrate":
+		return ex.executeMigrate()
+	case "sql":
 		dryRun := viper.GetBool("dry_run")
 		logLevel := "INFO"
 		if dryRun {
 			logLevel = "DRY-RUN"
 		}
-		fmt.Printf("[%s] executing SQL statement\n", logLevel)
+		log.log(logLevel, "executing SQL statement\n", logLevel)
 		if dryRun {
 			return 1, nil
 		}
@@ -221,7 +189,7 @@ func (ex *executor) execute(pathPattern string, ref *parser.Ref) (int, error) {
 		if dryRun {
 			logLevel = "DRY-RUN"
 		}
-		fmt.Printf("[%s] executing %s\n", logLevel, fr.FilePath)
+		log.log(logLevel, "executing %s\n", logLevel, fr.FilePath)
 		if dryRun {
 			continue
 		}

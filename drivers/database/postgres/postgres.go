@@ -263,6 +263,43 @@ func (p *Postgres) Exec(command io.Reader, params ...interface{}) error {
 	return nil
 }
 
+func (p *Postgres) Query(command io.Reader, params ...interface{}) (*sql.Rows, error) {
+	cmdBytes, err := ioutil.ReadAll(command)
+	if err != nil {
+		return nil, err
+	}
+
+	if params == nil {
+		params = []interface{}{}
+	}
+
+	cmd := string(cmdBytes[:])
+	var rows *sql.Rows
+	if rows, err = p.conn.QueryContext(context.Background(), cmd, params...); err != nil {
+		if pgErr, ok := err.(*pq.Error); ok {
+			var line uint
+			var col uint
+			var lineColOK bool
+			if pgErr.Position != "" {
+				if pos, err := strconv.ParseUint(pgErr.Position, 10, 64); err == nil {
+					line, col, lineColOK = computeLineFromPos(cmd, int(pos))
+				}
+			}
+			message := pgErr.Message
+			if lineColOK {
+				message = fmt.Sprintf("%s (column %d)", message, col)
+			}
+			if pgErr.Detail != "" {
+				message = fmt.Sprintf("%s, %s", message, pgErr.Detail)
+			}
+			return nil, database.Error{OrigErr: err, Err: message, Query: cmdBytes, Line: line}
+		}
+		return nil, database.Error{OrigErr: err, Err: "command failed", Query: cmdBytes}
+	}
+
+	return rows, nil
+}
+
 func (p *Postgres) ImportCSV(filePath, schemaName, tableName, delimiter string, header bool) error {
 	sql := fmt.Sprintf("\\COPY %s.%s FROM '%s' WITH DELIMITER '%s' CSV", schemaName, tableName, filePath, delimiter)
 	if header {

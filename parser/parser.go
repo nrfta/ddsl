@@ -92,7 +92,7 @@ type Migrate struct {
 var (
 	re = `(\s+)` +
 		`|(?P<Keyword>(?i)CREATE|DROP|SEED|DATABASE|ROLES|EXTENSIONS|SCHEMAS|FOREIGN|KEYS|SCHEMA|TABLES|TABLE|VIEWS|VIEW|INDEXES|CONSTRAINTS|IN|ON|MIGRATE|TOP|BOTTOM|UP|DOWN|SQL)` +
-	// TODO: make schema optional and just have term after the dot (public schema)
+	// TODO: make schema Optional and just have term after the dot (public schema)
 		`|(?P<SchemaItem>[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)` +
 		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
 		"|(?P<Sql>(?s)`(.|\\n)*`)" +
@@ -130,7 +130,7 @@ var (
 )
 
 // Parse parses an input of one or more commands and returns a slice of parse trees.
-func Parse(commands string) ([]*DDSL, error) {
+func Parsex(commands string) ([]*DDSL, error) {
 	scanner := bufio.NewScanner(strings.NewReader(commands))
 	var trees []*DDSL
 	multiline := ""

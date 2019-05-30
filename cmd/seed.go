@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/parser"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -10,7 +11,7 @@ import (
 // seedCmd represents the seed command
 var seedCmd = &cobra.Command{
 	Use:   "seed",
-	Short: "Populate the database with seed data",
+	Short: parser.ShortDesc("seed"),
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("additional arguments required, use -h for help")
 		os.Exit(1)

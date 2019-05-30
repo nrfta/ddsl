@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
 )
@@ -9,19 +10,19 @@ import (
 // viewsCmd represents the views command
 var viewsCmd = &cobra.Command{
 	Use:   "views",
-	Short: "Create or drop views in a given schema",
-	Long: `Usage: ( create | drop ) views [in] <schema_name> [ -W <exclude_view_name> ...]
+	Short: parser.ShortDesc("create views"),
+	Long: `Usage: ( create | drop ) views [[ ( in | except [in] ) ] <schema_name>[,<exclude_view_name> ...]];
 
 Examples:
-  create views in this_schema
-  drop views that_schema -W not_that_view`,
+  create views;
+  create views in this_schema;
+  create views this_schema;
+  drop views in that_schema,other_schema;
+  drop views except in that_schema;
+  drop views except that_schema,other_schema;`,
 	Run: createOrDropViews,
 }
 
 func createOrDropViews(cmd *cobra.Command, args []string) {
 	fmt.Println("views called")
-}
-
-func init() {
-	defineExcludeViewFlag(viewsCmd)
 }

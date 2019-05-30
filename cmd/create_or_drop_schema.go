@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
 )
@@ -9,10 +10,12 @@ import (
 // schemaCmd represents the schema command
 var schemaCmd = &cobra.Command{
 	Use:   "schema",
-	Short: "Create or drop a given schema",
-	Long: `Examples:
-  create schema this_schema
-  drop schema that_schema`,
+	Short: parser.ShortDesc("create schema"),
+	Long: `Usage: ( create | drop ) schema <schema_name>[,<schema_name> ...]
+
+Examples:
+  create schema this_schema;
+  drop schema that_schema,other_schema;`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("schema called")
 	},

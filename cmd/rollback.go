@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
 )
@@ -9,8 +10,8 @@ import (
 // rollbackCmd represents the rollback command
 var rollbackCmd = &cobra.Command{
 	Use:   "rollback",
-	Short: "Rollback the active transaction",
-	Long: `Usage: rollback [transaction]`,
+	Short: parser.ShortDesc("rollback"),
+	Long: `Usage: rollback [transaction];`,
 	Run: rollback,
 }
 
