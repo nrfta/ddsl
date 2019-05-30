@@ -45,6 +45,8 @@ func Execute(repo string, dbURL string, command string) error {
 	}
 	defer dbDriver.Close()
 
+	count := 0
+
 	// database commands cannot run in transaction
 	cmds := getDatabaseCommands(trees)
 	if len(cmds) > 0 {
@@ -57,7 +59,9 @@ func Execute(repo string, dbURL string, command string) error {
 			dbURL:     dbURL,
 			parseTree: t,
 		}
-		if err := execute(ex); err != nil {
+		c, err := execute(ex)
+		count += c
+		if err != nil {
 			return err
 		}
 	}
@@ -77,10 +81,13 @@ func Execute(repo string, dbURL string, command string) error {
 
 	dryRun := viper.GetBool("dry_run")
 
+	logLevel := "INFO"
 	if dryRun {
-		fmt.Println("[DRY-RUN] would begin transaction")
-	} else {
-		fmt.Println("[INFO] beginning transaction")
+		logLevel = "DRY-RUN"
+	}
+	fmt.Printf("[%s] beginning transaction\n", logLevel)
+
+	if !dryRun {
 		err = dbDriver.Begin()
 		if err != nil {
 			return err
@@ -94,23 +101,37 @@ func Execute(repo string, dbURL string, command string) error {
 			dbDriver:  dbDriver,
 			parseTree: t,
 		}
-		if err := execute(ex); err != nil {
+
+		c, err := execute(ex)
+		count += c
+		if err != nil {
+			logLevel = "WARN"
 			if dryRun {
-				fmt.Println("[DRY-RUN] would rollback transaction")
-				return err
+				logLevel = "DRY-RUN"
 			}
-			fmt.Println("[WARN] rolling back transaction")
-			_ = dbDriver.Rollback()
+			fmt.Printf("[%s] rolling back transaction\n", logLevel)
+			if !dryRun {
+				_ = dbDriver.Rollback()
+			}
 			return err
 		}
 	}
 
+	logLevel = "INFO"
 	if dryRun {
-		fmt.Println("[DRY-RUN] would commit transaction")
-		return nil
+		logLevel = "DRY-RUN"
+	}
+	fmt.Printf("[%s] committing transaction\n", logLevel)
+
+	if count == 0 {
+		fmt.Println("[WARN] *** command did nothing; no files matched ***")
+	} else {
+		fmt.Printf("[INFO] *** %d files processed ***\n", count)
 	}
 
-	fmt.Println("[INFO] committing transaction")
+	if dryRun {
+		return nil
+	}
 	return dbDriver.Commit()
 }
 
@@ -129,7 +150,7 @@ func isDatabaseCommand(t *parser.DDSL) bool {
 	return (t.Create != nil && t.Create.Database != nil) || (t.Drop != nil && t.Drop.Database != nil)
 }
 
-func execute(ex *executor) error {
+func execute(ex *executor) (int, error) {
 	switch {
 	case ex.parseTree.Create != nil:
 		ex.createOrDrop = create
@@ -137,18 +158,24 @@ func execute(ex *executor) error {
 	case ex.parseTree.Drop != nil:
 		ex.createOrDrop = drop
 		return executeCreateOrDrop(ex)
+	case ex.parseTree.Seed != nil:
+		return executeSeed(ex)
 	case ex.parseTree.Migrate != nil:
 		return executeMigrate(ex, ex.parseTree.Migrate)
 	case ex.parseTree.Sql != nil:
-		if viper.GetBool("dry_run") {
-			fmt.Println("[DRY-RUN] would execute SQL statement")
-			return nil
+		dryRun := viper.GetBool("dry_run")
+		logLevel := "INFO"
+		if dryRun {
+			logLevel = "DRY-RUN"
 		}
-		fmt.Println("[INFO] executing SQL statement")
-		return ex.dbDriver.Exec(strings.NewReader(*ex.parseTree.Sql))
+		fmt.Printf("[%s] executing SQL statement\n", logLevel)
+		if dryRun {
+			return 1, nil
+		}
+		return 1, ex.dbDriver.Exec(strings.NewReader(*ex.parseTree.Sql))
 	}
 
-	return errors.New("unknown command")
+	return 0, errors.New("unknown command")
 }
 
 func (ex *executor) getSourceDriver(ref *parser.Ref) error {
@@ -173,33 +200,38 @@ func (ex *executor) getSourceDriver(ref *parser.Ref) error {
 	return nil
 }
 
-func (ex *executor) execute(pathPattern string, ref *parser.Ref) error {
+func (ex *executor) execute(pathPattern string, ref *parser.Ref) (int, error) {
 	if err := ex.getSourceDriver(ref); err != nil {
-		return err
+		return 0, err
 	}
 	defer ex.sourceDriver.Close()
 
 	relativePath, filePattern := getRelativePathAndFilePattern(pathPattern)
 	readers, err := ex.sourceDriver.ReadFiles(relativePath, filePattern)
 	if err != nil {
-		return err
+		return 0, err
 	}
+
+	fileCount := len(readers)
 
 	dryRun := viper.GetBool("dry_run")
 
 	for _, fr := range readers {
+		logLevel := "INFO"
 		if dryRun {
-			fmt.Printf("[DRY-RUN] would execute %s\n", fr.FilePath)
+			logLevel = "DRY-RUN"
+		}
+		fmt.Printf("[%s] executing %s\n", logLevel, fr.FilePath)
+		if dryRun {
 			continue
 		}
-		fmt.Printf("[INFO] executing %s\n", fr.FilePath)
 		err = ex.dbDriver.Exec(fr.Reader)
 		if err != nil {
-			return err
+			return fileCount, err
 		}
 	}
 
-	return nil
+	return fileCount, nil
 }
 
 func (ex *executor) getSchemaNames(ref *parser.Ref) ([]string, error) {

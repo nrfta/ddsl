@@ -72,6 +72,9 @@ type Driver interface {
 
 	// Execute should execute the given command against the database.
 	Exec(command io.Reader, params ...interface{}) error
+
+	// ImportCSV imports a csv file into the database.
+	ImportCSV(filePath, schemaName, tableName, delimiter string, header bool) error
 }
 
 // Open returns a new driver instance.

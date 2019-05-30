@@ -10,10 +10,11 @@ import (
 
 // DDSL is the top level struct of the parser. Only one of the members will be populated.
 type DDSL struct {
-	Create  *Command `"CREATE" @@`
-	Drop    *Command `| "DROP" @@`
-	Migrate *Migrate `| "MIGRATE" @@`
-	Sql     *string  `| "SQL" @Sql`
+	Create  *Command     `"CREATE" @@`
+	Drop    *Command     `| "DROP" @@`
+	Migrate *Migrate     `| "MIGRATE" @@`
+	Sql     *string      `| "SQL" @Sql`
+	Seed    *SeedCommand `| "SEED" @@`
 }
 
 // Command contains details of a create or drop command. Only one of the members will be `true` or populated.
@@ -30,6 +31,11 @@ type Command struct {
 	View           *SchemaItem  `| "VIEW" @@`
 	Indexes        *SchemaItem  `| "INDEXES" "ON" @@`
 	Constraints    *SchemaItem  `| "CONSTRAINTS" "ON" @@`
+}
+
+type SeedCommand struct {
+	Table          *SchemaItem `"TABLE" @@`
+	TablesInSchema *Name       `| "TABLES" "IN" @@`
 }
 
 // Database contains details for action on a database.
@@ -85,7 +91,7 @@ type Migrate struct {
 
 var (
 	re = `(\s+)` +
-		`|(?P<Keyword>(?i)CREATE|DROP|DATABASE|ROLES|EXTENSIONS|SCHEMAS|FOREIGN|KEYS|SCHEMA|TABLES|TABLE|VIEWS|VIEW|INDEXES|CONSTRAINTS|IN|ON|MIGRATE|TOP|BOTTOM|UP|DOWN|SQL)` +
+		`|(?P<Keyword>(?i)CREATE|DROP|SEED|DATABASE|ROLES|EXTENSIONS|SCHEMAS|FOREIGN|KEYS|SCHEMA|TABLES|TABLE|VIEWS|VIEW|INDEXES|CONSTRAINTS|IN|ON|MIGRATE|TOP|BOTTOM|UP|DOWN|SQL)` +
 	// TODO: make schema optional and just have term after the dot (public schema)
 		`|(?P<SchemaItem>[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)` +
 		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
@@ -209,6 +215,11 @@ func parse(command string) (*DDSL, error) {
 			}
 			if tree.Drop.Constraints != nil {
 				tree.Drop.Constraints.populate()
+			}
+		}
+		if tree.Seed != nil {
+			if tree.Seed.Table != nil {
+				tree.Seed.Table.populate()
 			}
 		}
 

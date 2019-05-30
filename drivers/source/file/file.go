@@ -73,7 +73,6 @@ func (f *File) Close() error {
 
 func (f *File) readDirectory(relativeDir string, fileNamePattern string, recursive bool) (df *source.DirectoryReader, err error) {
 	dirPath := path.Join(f.path, relativeDir)
-
 	var re *regexp.Regexp
 	if len(fileNamePattern) > 0 {
 		re = regexp.MustCompile(fileNamePattern)
