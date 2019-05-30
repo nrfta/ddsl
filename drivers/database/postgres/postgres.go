@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	nurl "net/url"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -31,6 +32,7 @@ var (
 type Config struct {
 	DatabaseName string
 	SchemaName   string
+	URL          string
 }
 
 type Postgres struct {
@@ -111,6 +113,7 @@ func (p *Postgres) Open(url string) (database.Driver, error) {
 
 	px, err := WithInstance(db, &Config{
 		DatabaseName: purl.Path,
+		URL:          url,
 	})
 
 	if err != nil {
@@ -258,6 +261,53 @@ func (p *Postgres) Exec(command io.Reader, params ...interface{}) error {
 	}
 
 	return nil
+}
+
+func (p *Postgres) ImportCSV(filePath, schemaName, tableName, delimiter string, header bool) error {
+	sql := fmt.Sprintf("\\COPY %s.%s FROM '%s' WITH DELIMITER '%s' CSV", schemaName, tableName, filePath, delimiter)
+	if header {
+		sql += " HEADER;"
+	} else {
+		sql += ";"
+	}
+	cmd := exec.Command("psql", p.config.URL, "-q", "-c", sql)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+	if err = cmd.Start(); err != nil {
+		return err
+	}
+	out, _ := ioutil.ReadAll(stdout)
+	e, _ := ioutil.ReadAll(stderr)
+	if err = cmd.Wait(); err != nil {
+		s := getOutAndErr(out, e)
+		if len(s) > 0 {
+			return fmt.Errorf(string(s))
+		}
+		return err
+	}
+
+	s := getOutAndErr(out, e)
+	if len(s) > 0 {
+		fmt.Println(s)
+	}
+	return nil
+}
+
+func getOutAndErr(out, e []uint8) string {
+	s := ""
+	if len(out) > 0 {
+		s = string(out)
+	}
+	if len(e) > 0 {
+		s += string(e)
+	}
+	return s
 }
 
 func computeLineFromPos(s string, pos int) (line uint, col uint, ok bool) {

@@ -38,7 +38,7 @@ var pathPatterns = map[string]string{
 	constraints: `schemas/%s/constraints/%s\.%s.*`,
 }
 
-func executeCreateOrDrop(ex *executor) error {
+func executeCreateOrDrop(ex *executor) (int, error) {
 	var cmd *parser.Command
 	if ex.createOrDrop == create {
 		cmd = ex.parseTree.Create
@@ -73,141 +73,184 @@ func executeCreateOrDrop(ex *executor) error {
 		return executeViews(ex, cmd.ViewsInSchema.Name, cmd.TablesInSchema.Ref)
 	}
 
-	return errors.New("unknown command")
+	return 0, errors.New("unknown command")
 }
 
-func executeViews(ex *executor, schemaName string, ref *parser.Ref) error {
-	if err := executeKey(ex, ref, views, schemaName, ex.createOrDrop); err != nil {
-		return err
+func executeViews(ex *executor, schemaName string, ref *parser.Ref) (int, error) {
+	count, err := executeKey(ex, ref, views, schemaName, ex.createOrDrop)
+	if err != nil {
+		return count, err
 	}
 
 	if ex.createOrDrop == drop {
-		return nil
+		return count, nil
 	}
 
-	return createIndexesAndConstraints(ex, schemaName, views, ref)
+	if count > 0 {
+		c, err := createIndexesAndConstraints(ex, schemaName, views, ref)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
 }
 
-func executeTables(ex *executor, schemaName string, ref *parser.Ref) error {
-	if err := executeKey(ex, ref, tables, schemaName, ex.createOrDrop); err != nil {
-		return err
+func executeTables(ex *executor, schemaName string, ref *parser.Ref) (int, error) {
+	count, err := executeKey(ex, ref, tables, schemaName, ex.createOrDrop)
+	if err != nil {
+		return count, err
 	}
 
 	if ex.createOrDrop == drop {
-		return nil
+		return count, nil
 	}
 
-	return createIndexesAndConstraints(ex, schemaName, tables, ref)
+	if count > 0 {
+		c, err := createIndexesAndConstraints(ex, schemaName, tables, ref)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
 }
 
-func createIndexesAndConstraints(ex *executor, schemaName string, itemType string, ref *parser.Ref) error {
+func createIndexesAndConstraints(ex *executor, schemaName string, itemType string, ref *parser.Ref) (int, error) {
 	items, err := ex.namesOf(itemType, schemaName, ref)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
+	count := 0
 	for _, item := range items {
 
-		if err := executeConstraints(ex, schemaName, item, ref); err != nil {
-			return err
+		c, err := executeConstraints(ex, schemaName, item, ref)
+		count += c
+		if err != nil {
+			return count, err
 		}
 
-		if err := executeIndexes(ex, schemaName, item, ref); err != nil {
-			return err
-		}
+		c, err = executeIndexes(ex, schemaName, item, ref)
+		count += c
+		return count, err
 	}
 
-	return nil
+	return count, nil
 }
 
-func executeConstraints(ex *executor, schemaName string, tableName string, ref *parser.Ref) error {
+func executeConstraints(ex *executor, schemaName string, tableName string, ref *parser.Ref) (int, error) {
 	return executeKey(ex, ref, constraints, schemaName, tableName, ex.createOrDrop)
 }
 
-func executeIndexes(ex *executor, schemaName string, tableOrViewName string, ref *parser.Ref) error {
+func executeIndexes(ex *executor, schemaName string, tableOrViewName string, ref *parser.Ref) (int, error) {
 	return executeKey(ex, ref, indexes, schemaName, tableOrViewName, ex.createOrDrop)
 }
 
-func executeTableOrView(ex *executor, tableOrView string, schemaName string, tableOrViewName string, ref *parser.Ref) error {
-	if err := executeKey(ex, ref, tableOrView, schemaName, tableOrViewName, ex.createOrDrop); err != nil {
-		return err
+func executeTableOrView(ex *executor, tableOrView string, schemaName string, tableOrViewName string, ref *parser.Ref) (int, error) {
+	count, err := executeKey(ex, ref, tableOrView, schemaName, tableOrViewName, ex.createOrDrop)
+	if err != nil {
+		return count, err
 	}
 
 	if ex.createOrDrop == drop {
-		return nil
+		return count, nil
 	}
 
-	if err := executeConstraints(ex, schemaName, tableOrViewName, ref); err != nil {
-		return err
+	if count > 0 {
+
+		c, err := executeConstraints(ex, schemaName, tableOrViewName, ref)
+		count += c
+		if err != nil {
+			return count, err
+		}
+
+		c, err = executeIndexes(ex, schemaName, tableOrViewName, ref)
+		count += c
+		return count, err
 	}
 
-	return executeIndexes(ex, schemaName, tableOrViewName, ref)
+	return count, nil
 }
 
-func executeSchema(ex *executor, schemaName string, ref *parser.Ref) error {
-	if err := executeKey(ex, ref, schema, schemaName, ex.createOrDrop); err != nil {
-		return err
+func executeSchema(ex *executor, schemaName string, ref *parser.Ref) (int, error) {
+	count, err := executeKey(ex, ref, schema, schemaName, ex.createOrDrop)
+	if err != nil {
+		return count, err
 	}
 
-	if ex.createOrDrop == create {
+	if ex.createOrDrop == create && count > 0 {
 
 		// create tables and views as well
 
-		if err := executeTables(ex, schemaName, ref); err != nil {
-			return err
+		c, err := executeTables(ex, schemaName, ref)
+		count += c
+		if err != nil {
+			return count, err
 		}
-		return executeViews(ex, schemaName, ref)
+		c, err = executeViews(ex, schemaName, ref)
+		count += c
+		return count, err
 	}
 
-	return nil
+	return count, nil
 }
 
-func executeDatabase(ex *executor, ref *parser.Ref) error {
-	if err := executeTopLevel(ex, database, ref); err != nil {
-		return err
+func executeDatabase(ex *executor, ref *parser.Ref) (int, error) {
+	count, err := executeTopLevel(ex, database, ref)
+	if err != nil {
+		return count, err
 	}
 
-	return nil
+	return count, nil
 }
 
-func executeTopLevel(ex *executor, itemType string, ref *parser.Ref) error {
+func executeTopLevel(ex *executor, itemType string, ref *parser.Ref) (int, error) {
 	return executeKey(ex, ref, itemType, ex.createOrDrop)
 }
 
-func executeSchemas(ex *executor, ref *parser.Ref) error {
+func executeSchemas(ex *executor, ref *parser.Ref) (int, error) {
+	count := 0
 	if ex.createOrDrop == drop {
-		if err := executeTopLevel(ex, foreignKeys, ref); err != nil {
-			return err
+		c, err := executeTopLevel(ex, foreignKeys, ref)
+		count += c
+		if err != nil {
+			return count, err
 		}
 	}
 
 	schemaNames, err := ex.getSchemaNames(ref)
 	if err != nil {
-		return err
+		return count, err
 	}
 
 	for _, schemaName := range schemaNames {
-		if err := executeSchema(ex, schemaName, ref); err != nil {
-			return err
+		c, err := executeSchema(ex, schemaName, ref)
+		count += c
+		if err != nil {
+			return count, err
 		}
 	}
 
 	if ex.createOrDrop == create {
-		if err := executeTopLevel(ex, foreignKeys, ref); err != nil {
-			return err
-		}
+		c, err := executeTopLevel(ex, foreignKeys, ref)
+		count += c
+		return count, err
 	}
 
-	return nil
+	return count, nil
 }
 
-func executeKey(ex *executor, ref *parser.Ref, patternKey string, params ...interface{}) error {
+func executeKey(ex *executor, ref *parser.Ref, patternKey string, params ...interface{}) (int, error) {
 	path := fmt.Sprintf(pathPatterns[patternKey], params...)
-	if err := ex.execute(path, ref); err != nil {
-		return err
+	count, err := ex.execute(path, ref)
+	if err != nil {
+		return count, err
 	}
 
-	return nil
+	return count, nil
 
 }
 
