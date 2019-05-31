@@ -2,20 +2,22 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
 )
 
 // grantTablesCmd represents the grantTables command
 var grantTablesCmd = &cobra.Command{
-	Use:   "grantTables",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Use:   "tables",
+	Short: parser.ShortDesc("grant privileges on tables"),
+	Long: `Usage: ( grant | revoke ) [privileges] on tables [except <table_name>[,<table_name> ...];
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Examples:
+  grant privileges on tables;
+  grant on tables except this_schema.this_table;
+  revoke on tables;
+  revoke privileges on tables except that_schema.that_table,other_schema.other_table`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("grantTables called")
 	},

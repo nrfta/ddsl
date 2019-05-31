@@ -2,20 +2,20 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
 )
 
 // grantViewCmd represents the grantView command
 var grantViewCmd = &cobra.Command{
-	Use:   "grantView",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Use:   "view",
+	Short: parser.ShortDesc("grant privileges on view"),
+	Long: `Usage: ( grant | revoke ) [privileges] on view <view_name>[,<view_name> ...];
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Examples:
+  grant privileges on view this_schema.this_view;
+  revoke on view that_schema.that_view,other_schema.other_view;`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("grantView called")
 	},

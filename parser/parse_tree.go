@@ -24,8 +24,12 @@ type CommandDef struct {
 	Level       int
 	Parent      *CommandDef
 	CommandDefs map[string]*CommandDef
-	Args        map[string]*Arg
-	ParsedArgs  []string
+	ArgDefs     map[string]*Arg
+}
+
+type Command struct {
+	CommandDef *CommandDef
+	Args []string
 }
 
 var ParseTree *Tree
@@ -148,8 +152,9 @@ func init() {
 	initialize()
 }
 
-// Parse parses the give command and returns the associated `CommandDef`.
-func Parse(command string) (*CommandDef, error) {
+// TryParse parses the given partial command and returns the deepest associated `Command`.
+// This is used for repl and commandline completions.
+func TryParse(command string) (*Command, error) {
 	if len(command) == 0 {
 		return nil, fmt.Errorf("no command was provided")
 	}
@@ -161,17 +166,40 @@ func Parse(command string) (*CommandDef, error) {
 		var ok bool
 		_, ok = cmdDefs[strings.ToLower(k)]
 		if !ok {
-			if len(cmdDef.Args) > 0 {
-				cmdDef.ParsedArgs = keys[i:]
-				return cmdDef, nil
+			if len(cmdDef.ArgDefs) > 0 {
+				cmd := &Command{
+					CommandDef: cmdDef,
+					Args: keys[i:],
+				}
+				return cmd, nil
 			}
 			return nil, fmt.Errorf("syntax error at '%s'", k)
 		}
 		cmdDef = cmdDefs[strings.ToLower(k)]
 		cmdDefs = cmdDef.CommandDefs
+		if cmdDef.Primary {
+			cmd := &Command{
+				CommandDef: cmdDef,
+				Args: keys[i:],
+			}
+			return cmd, nil
+		}
 	}
 
-	return cmdDef, nil
+	cmd := &Command{
+		CommandDef: cmdDef,
+		Args: []string{},
+	}
+	return cmd, nil
+}
+
+func Parse(command string) (*Command, error) {
+	cmd, err := TryParse(command)
+	if !cmd.CommandDef.Primary {
+		return nil, fmt.Errorf("primary command token not found")
+	}
+
+	return cmd, err
 }
 
 // ShortDesc returns the `ShortDesc` field of a command. ShortDesc panics
@@ -218,7 +246,7 @@ func initialize() {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "-") {
 			arg := procArg(line)
-			parentCmd.Args[arg.Name] = arg
+			parentCmd.ArgDefs[arg.Name] = arg
 		} else {
 			subCmd := procCommand(line, parentCmd)
 			parentCmd.CommandDefs[subCmd.Name] = subCmd
@@ -237,7 +265,7 @@ func initialize() {
 		NonExec:     true,
 		Parent:      ddsl,
 		CommandDefs: ddsl.CommandDefs["create"].CommandDefs,
-		Args:        ddsl.CommandDefs["create"].Args,
+		ArgDefs:     ddsl.CommandDefs["create"].ArgDefs,
 	}
 
 	ddsl.CommandDefs["revoke"] = &CommandDef{
@@ -247,7 +275,7 @@ func initialize() {
 		NonExec:     true,
 		Parent:      ddsl,
 		CommandDefs: ddsl.CommandDefs["grant"].CommandDefs,
-		Args:        ddsl.CommandDefs["grant"].Args,
+		ArgDefs:     ddsl.CommandDefs["grant"].ArgDefs,
 	}
 
 	ParseTree = &Tree{ddsl.CommandDefs}
@@ -262,7 +290,7 @@ func procCommand(line string, parentCmd *CommandDef) *CommandDef {
 		Level:       parentCmd.Level + 1,
 		Parent:      parentCmd,
 		CommandDefs: map[string]*CommandDef{},
-		Args:        map[string]*Arg{},
+		ArgDefs:     map[string]*Arg{},
 	}
 
 	for i := 2; i < len(items); i++ {

@@ -71,7 +71,7 @@ func completer(d prompt.Document) []prompt.Suggest {
 	}
 
 	//
-	if len(nextCmdDef.Args) > 0 {
+	if len(nextCmdDef.ArgDefs) > 0 {
 		suggestedArgs, err := suggestArgs(rootCmd, nextCmdDef)
 		if err != nil {
 			return []prompt.Suggest{}
@@ -90,7 +90,7 @@ func completer(d prompt.Document) []prompt.Suggest {
 
 func suggestArgs(rootCmd, nextCmd *parser.CommandDef) ([]string, error) {
 	result := []string{}
-	for _, a := range nextCmd.Args {
+	for _, a := range nextCmd.ArgDefs {
 		switch a.Name {
 		case "include_schemas", "exclude_schemas":
 			schemas, err := cache.getDatabaseSchemas()
