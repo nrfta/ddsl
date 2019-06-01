@@ -3,6 +3,7 @@ package parser
 import (
 	"bufio"
 	"fmt"
+	"github.com/mattn/go-shellwords"
 	"strings"
 )
 
@@ -18,9 +19,7 @@ type Arg struct {
 type CommandDef struct {
 	Name        string
 	ShortDesc   string
-	Optional    bool
-	Primary     bool
-	NonExec     bool
+	Props       map[string]string
 	Level       int
 	Parent      *CommandDef
 	CommandDefs map[string]*CommandDef
@@ -29,38 +28,43 @@ type CommandDef struct {
 
 type Command struct {
 	CommandDef *CommandDef
+	RootDef *CommandDef
+	Clause string
 	Args []string
+	ExtArgs []string
 	Ref *string
+	tokenIndex int
 }
 
 var ParseTree *Tree
+var shellParser *shellwords.Parser
 
 var commandSpec = `ddsl,Top level command,primary
-  create,Top level create command,non-exec
+  create,Top level create command,root
     database,Create or drop the database,primary
     roles,Create or drop roles,primary
     foreign-keys,Create or drop foreign keys,primary
     schemas,Create or drop all schemas,primary
-      except,Comma-delimited list of schemas to exclude
+      except,Comma-delimited list of schemas to exclude,optional
         -exclude_schemas,Comma-delimited list of schemas to exclude
     schema,Create or drop one or more schemas,primary
       -include_schemas,Comma-delimited list of schemas
     extensions,Create or drop all extensions in one or more schemas,primary
-      in,Comma delimited list of schemas
+      in,Comma delimited list of schemas,optional
         -include_schemas,Comma-delimited list of schemas
-      except,Comma-delimited list of schemas to exclude
+      except,Comma-delimited list of schemas to exclude,optional
         in,Comma delimited list of schemas
           -exclude_schemas,Comma-delimited list of schemas
     tables,Create or drop all tables in one or more schemas,primary
-      in,Comma delimited list of schemas
+      in,Comma delimited list of schemas,optional
         -include_schemas,Comma-delimited list of schemas
-      except,Comma-delimited list of schemas to exclude
+      except,Comma-delimited list of schemas to exclude,optional
         in,Comma delimited list of schemas
           -exclude_schemas,Comma-delimited list of schemas
     views,Create or drop all views in one or more schemas,primary
-      in,Comma delimited list of schemas
+      in,Comma delimited list of schemas,optional
         -include_schemas,Comma-delimited list of schemas
-      except,Comma-delimited list of schemas to exclude
+      except,Comma-delimited list of schemas to exclude,optional
         in,Comma delimited list of schemas
           -exclude_schemas,Comma-delimited list of schemas
     table,Create or drop one or more tables,primary
@@ -74,78 +78,83 @@ var commandSpec = `ddsl,Top level command,primary
       on,Comma delimited list of tables
         -include_tables,Comma-delimited list of tables
     types,Create or drop all types in one or more schemas,primary
-      in,Create or drop types
+      in,Create or drop types,optional
         -include_schemas,Comma-delimited list of schemas
-      except,Comma-delimited list of schemas to exclude
+      except,Comma-delimited list of schemas to exclude,optional
         in,Comma delimited list of schemas
           -exclude_schemas,Comma-delimited list of schemas
     type,Create or drop one or more types,primary
       -include_types,Comma-delimited list of types
-  migrate,Top level migrate command,non-exec
+  migrate,Top level migrate command,root
     up,Migrate the database up in version,primary
       -number_of_versions,Number of versions to migrate
     down,Migrate the database down in version,primary
       -number_of_versions,Number of versions to migrate
     top,Migrate the database to the latest version,primary
     bottom,Migrate the database to the earliest version,primary
-  seed,Top level seed command,non-exec
+  seed,Top level seed command,root
     cmd,Seed the database by running a shell command,primary
       -command,Shell command to run
     database,Seed the database,primary
-      with,Seed the database
+      with,Seed the database,optional
         -database_seeds,Comma-delimited list of seeds
-      without,Seed the database
+      without,Seed the database,optional
         -database_seeds,Comma-delimited list of seeds
-    schema,Seed a schema,primary
+    schemas,Seed all schemas,primary
+      except,Comma-delimited list of schemas to exclude,optional
+        -exclude_schemas,Comma-delimited list of schemas
+    schema,Seed a schema,primary,ext-args
       -single_schema,Single schema name
-      with,Seed a schema
+      with,Seed a schema,optional
         -schema_seeds,Comma-delimited list of seeds
-      without,Seed a schema
+      without,Seed a schema,optional
         -schema_seeds,Comma-delimited list of seeds
     table,Seed one or more tables,primary
       -include_tables,Comma-delimited list of tables
     tables,Seed all tables in given schemas,primary
-      in,Comma delimited list of schemas
+      in,Comma delimited list of schemas,optional
         -include_schemas,Comma-delimited list of schemas
-      except,Comma-delimited list of schemas to exclude
+      except,Comma-delimited list of schemas to exclude,optional
         in,Comma delimited list of schemas
           -exclude_schemas,Comma-delimited list of schemas
     sql,Seed with SQL command of script,primary
       -command,SQL command to run
-      -file,SQL file to run
+      -file,SQL file to seed database
+    from,Seed with CSV file,primary
+      -file,CSV file to seed database
   sql,Run an SQL command or script,primary
     -command,SQL command to run
     -file,SQL file to run
-  grant,Top-level grant command,non-exec
+  grant,Top-level grant command,root
     privileges,Top-level grant or revoke privileges command,optional,non-exec
       on,Top-level grant or revoke privileges command,non-exec
         database,Grant or revoke privileges on the database,primary
         schemas,Grant or revoke privileges on all schemas,primary
-          except,Comma-delimited list of schemas to exclude
+          except,Comma-delimited list of schemas to exclude,optional
             -exclude_schemas,Comma-delimited list of schemas
         schema,Grant or revoke privileges on one or more schemas,primary
           -include_schemas,Comma-delimited list of schemas
         tables,Grant or revoke privileges on all tables in one or more schemas,primary
-          in,Comma delimited list of schemas
+          in,Comma delimited list of schemas,optional
             -include_schemas,Comma-delimited list of schemas
-          except,Comma-delimited list of schemas to exclude
+          except,Comma-delimited list of schemas to exclude,optional
             in,Comma delimited list of schemas
               -exclude_schemas,Comma-delimited list of schemas
         views,Grant or revoke privileges on all views in one or more schemas,primary
-          in,Comma delimited list of schemas
+          in,Comma delimited list of schemas,optional
             -include_schemas,Comma-delimited list of schemas
-          except,Comma-delimited list of schemas to exclude
+          except,Comma-delimited list of schemas to exclude,optional
             in,Comma delimited list of schemas
               -exclude_schemas,Comma-delimited list of schemas
         table,Grant or revoke privileges on one or more tables,primary
           -include_tables,Comma-delimited list of tables
         view,Grant or revoke privileges on one or more views,primary
           -include_views,Comma-delimited list of views
-  begin,Begin a transaction,primary
+  begin,Begin a transaction,root,primary
     transaction,Begin a transaction,optional
-  commit,Commit the current transaction,primary
+  commit,Commit the current transaction,root,primary
     transaction,Commit the current transaction,optional
-  rollback,Rollback the current transaction,primary
+  rollback,Rollback the current transaction,root,primary
     transaction,Rollback the current transaction,optional`
 
 func init() {
@@ -154,85 +163,142 @@ func init() {
 
 // TryParse parses the given partial command and returns the deepest associated `Command`.
 // This is used for repl and commandline completions.
-func TryParse(command string) (*Command, error) {
+func TryParse(command string) (cmd *Command, remainder []string, err error) {
 	if len(command) == 0 {
-		return nil, fmt.Errorf("no command was provided")
+		return nil, nil, fmt.Errorf("no command was provided")
 	}
 
-	keys := strings.Split(command, " ")
+	tokens, err  := shellParser.Parse(command)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	cmdDefs:= ParseTree.CommandDefs
+	args := []string{}
+	remainder = []string{}
+	err = nil
 	var cmdDef *CommandDef
-	for i,k := range keys {
-		var ok bool
-		_, ok = cmdDefs[strings.ToLower(k)]
-		if !ok {
-			if len(cmdDef.ArgDefs) > 0 {
-				cmd := makeCommand(cmdDef, keys[i:])
-				return cmd, nil
-			}
-			// if next command is singular and optional then assume it
-			if len(cmdDef.CommandDefs) == 1 {
-				for _, n := range cmdDef.CommandDefs {
-					if n.Optional {
-						cmdDef = n
-						cmdDefs = cmdDef.CommandDefs
-						continue
+	for i, token := range tokens {
+		next, ok := cmdDefs[strings.ToLower(token)]
+		if ok {
+			tokenIndex := i
+			if next.HasExtArgs() {
+				for a := 0; a < len(next.ArgDefs); a++ {
+					if tokenIndex+1 < len(tokens) {
+						tokenIndex++
+						args = append(args, tokens[tokenIndex])
+					} else {
+						break
 					}
 				}
 			}
-			return nil, fmt.Errorf("syntax error at '%s'", k)
-		}
-		cmdDef = cmdDefs[strings.ToLower(k)]
-		cmdDefs = cmdDef.CommandDefs
-		if cmdDef.Primary {
-			cmd := makeCommand(cmdDef, keys[i:])
-			return cmd, nil
+			if len(tokens[tokenIndex:]) > 1 {
+				remainder = tokens[tokenIndex+1:]
+			} else {
+				remainder = []string{}
+			}
+			if next.IsPrimary() {
+				cmd = makeCommand(next, args, tokenIndex-i)
+				return
+			}
+			cmdDef = next
+			cmdDefs = next.CommandDefs
+		} else {
+			if len(cmdDef.ArgDefs) > 0 {
+				// token is not a command, so assume it's an arg,
+				// do not advance down the parse tree
+				args = append(args, token)
+			} else {
+				next, _ = cmdDef.skipOptionalTo(token)
+				if next == nil {
+					err = fmt.Errorf("syntax error at '%s'", token)
+					return
+				}
+				// advance down the parse tree
+				cmdDef = next
+				cmdDefs = next. CommandDefs
+			}
 		}
 	}
 
-	cmd := makeCommand(cmdDef, []string{})
-	return cmd, nil
+	err = fmt.Errorf("syntax error in '%s'", command)
+	return
 }
 
 func Parse(command string) (*Command, error) {
-	cmd, err := TryParse(command)
-	if !cmd.CommandDef.Primary {
+	cmd, remainder, err := TryParse(command)
+	if !cmd.CommandDef.IsPrimary() {
 		return nil, fmt.Errorf("primary command token not found")
 	}
+
+	if err != nil {
+		return cmd, err
+	}
+
+	clause, extArgs, err := cmd.parseRemainder(remainder)
+	if err != nil {
+		return cmd, err
+	}
+	cmd.Clause = clause
+	cmd.ExtArgs = extArgs
 
 	return cmd, err
 }
 
-func (c *Command) ParseArgs() (string, []string, error) {
-	if len(c.Args) == 0 {
-		return "", []string{}, nil
+func (c *Command) parseRemainder(tokens []string) (clause string, extArgs []string, err error) {
+	clause = ""
+	extArgs = []string{}
+	err = nil
+	if len(tokens) == 0 {
+		return
 	}
 
-	cmds := []string{}
+	clauseSl := []string{}
 	cmdDef := c.CommandDef
-	for _, a := range c.Args {
-		a = strings.ToLower(a)
-		nextCmdDef, ok := cmdDef.CommandDefs[a]
-		if !ok {
+	for _, token := range tokens {
+		token = strings.ToLower(token)
+		next, ok := cmdDef.CommandDefs[token]
+		if ok {
+			clauseSl = append(clauseSl, token)
+		} else {
 			if len(cmdDef.ArgDefs) > 0 {
-				return strings.Join(cmds, " "), strings.Split(a,","), nil
+				// assume the rest is args
+				clause = strings.Join(clauseSl, " ")
+				extArgs = strings.Split(token,",")
+				return
 			}
-			// if next command is singular and optional then assume it
-			if len(cmdDef.CommandDefs) == 1 {
-				for _, n := range cmdDef.CommandDefs {
-					if n.Optional {
-						cmds = append(cmds, n.Name)
-						cmdDef = n
-						continue
-					}
-				}
+			var skipped []string
+			next, skipped = cmdDef.skipOptionalTo(token)
+			if next == nil {
+				err = fmt.Errorf("syntax error at '%s'", token)
+				return
 			}
-			return strings.Join(cmds, " "), nil, fmt.Errorf("syntax error at '%s'", a)
+			clauseSl = append(clauseSl, skipped...)
 		}
-		cmds = append(cmds, a)
-		cmdDef = nextCmdDef
+		cmdDef = next
 	}
-	return strings.Join(cmds, " "), []string{}, nil
+	clause = strings.Join(clauseSl, " ")
+	return
+}
+
+func (c *CommandDef) skipOptionalTo(token string) (*CommandDef, []string) {
+	if len(c.CommandDefs) == 0 {
+		return nil, []string{}
+	}
+	return c._skipOptionalToWork(token, []string{})
+}
+
+func (c *CommandDef) _skipOptionalToWork(token string, skipped []string) (*CommandDef, []string) {
+	for _, next := range c.CommandDefs {
+		if next.Name == strings.ToLower(token) {
+			return next, skipped
+		}
+		if next.IsOptional() {
+			skipped = append(skipped, next.Name)
+			return next._skipOptionalToWork(token, skipped)
+		}
+	}
+	return nil, skipped
 }
 
 // ShortDesc returns the `ShortDesc` field of a command. ShortDesc panics
@@ -263,7 +329,32 @@ func (c *CommandDef) ParentAtLevel(level int) *CommandDef {
 	panic("level must be lower than current command")
 }
 
+func (c *CommandDef) IsOptional() bool {
+	return c.hasProp("optional")
+}
+func (c *CommandDef) IsRoot() bool {
+	return c.hasProp("root")
+}
+func (c *CommandDef) IsNonExec() bool {
+	return c.hasProp("non-exec")
+}
+func (c *CommandDef) IsPrimary() bool {
+	return c.hasProp("primary")
+}
+func (c *CommandDef) HasExtArgs() bool {
+	return c.hasProp("ext-args")
+}
+
+func (c *CommandDef) hasProp(name string) bool {
+	_, ok := c.Props[name]
+	return ok
+}
+
 func initialize() {
+	shellParser = shellwords.NewParser()
+	shellParser.ParseEnv = true
+	shellParser.ParseBacktick = true
+
 	scanner := bufio.NewScanner(strings.NewReader(commandSpec))
 	levels := map[int]*CommandDef{}
 
@@ -295,7 +386,7 @@ func initialize() {
 		Name:        "drop",
 		ShortDesc:   "Top level drop command",
 		Level:       1,
-		NonExec:     true,
+		Props:       map[string]string{"non-exec":"true"},
 		Parent:      ddsl,
 		CommandDefs: ddsl.CommandDefs["create"].CommandDefs,
 		ArgDefs:     ddsl.CommandDefs["create"].ArgDefs,
@@ -305,7 +396,7 @@ func initialize() {
 		Name:        "revoke",
 		ShortDesc:   "Top level revoke command",
 		Level:       1,
-		NonExec:     true,
+		Props:       map[string]string{"non-exec":"true"},
 		Parent:      ddsl,
 		CommandDefs: ddsl.CommandDefs["grant"].CommandDefs,
 		ArgDefs:     ddsl.CommandDefs["grant"].ArgDefs,
@@ -317,19 +408,29 @@ func initialize() {
 func procCommand(line string, parentCmd *CommandDef) *CommandDef {
 	items := strings.Split(line, ",")
 
+	level := 0
+	if parentCmd != nil {
+		level = parentCmd.Level + 1
+	}
+
 	cmdDef := &CommandDef{
 		Name:        items[0],
 		ShortDesc:   items[1],
-		Level:       parentCmd.Level + 1,
+		Props:       map[string]string{},
+		Level:       level,
 		Parent:      parentCmd,
 		CommandDefs: map[string]*CommandDef{},
 		ArgDefs:     map[string]*Arg{},
 	}
 
 	for i := 2; i < len(items); i++ {
-		cmdDef.Optional = items[i] == "optional"
-		cmdDef.Primary = items[i] == "primary"
-		cmdDef.NonExec = items[i] == "non-exec"
+		p := strings.Split(items[i], "=")
+		name := p[0]
+		value := "true"
+		if len(p) == 2 {
+			value = p[1]
+		}
+		cmdDef.Props[name] = value
 	}
 
 	return cmdDef
@@ -354,19 +455,30 @@ func indentLevel(line string) int {
 	return indent
 }
 
-func makeCommand(cmdDef *CommandDef, args []string) *Command {
-	var ref *string
+func makeCommand(cmdDef *CommandDef, args []string, tokenIndex int) *Command {
+	lastArg := ""
 	if len(args) > 0 {
-		lastArg := args[len(args)-1]
-		if strings.HasPrefix(lastArg, "@") {
-			r := lastArg[1:]
-			ref = &r
-			args = args[:len(args)-1]
-		}
+		lastArg = args[len(args)-1]
+	}
+
+	var ref *string
+	if len(lastArg) > 0 && strings.HasPrefix(lastArg, "@") {
+		r := lastArg[1:]
+		ref = &r
+		args = args[:len(args)-1]
 	}
 	return &Command{
 		CommandDef: cmdDef,
+		RootDef: cmdDef.getRoot(),
 		Args: args,
 		Ref: ref,
+		tokenIndex: tokenIndex,
 	}
+}
+
+func (c *CommandDef) getRoot() *CommandDef {
+	if c.IsRoot() {
+		return c
+	}
+	return c.Parent.getRoot()
 }

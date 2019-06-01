@@ -162,7 +162,7 @@ func getFollowingSuggestions(cmdDef *parser.CommandDef, prefix string) []*follow
 	for _, c := range cmdDef.CommandDefs {
 		cmd := fmt.Sprintf("%s %s", prefix, c.Name)
 		subCmds := getFollowingSuggestions(c, cmd)
-		if len(subCmds) == 0 || !c.Optional {
+		if len(subCmds) == 0 || !c.IsOptional() {
 			result = append(result, &followingSuggestion{
 				text: fmt.Sprintf("%s,%s",cmd, c.ShortDesc),
 				cmdDef: c,

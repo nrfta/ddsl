@@ -77,16 +77,14 @@ func (ex *executor) executeCreateOrDrop() (int, error) {
 }
 
 func (ex *executor) executeTypes() (int, error) {
-	cmd, opts, err := ex.command.ParseArgs()
-	if err != nil {
-		return 0, err
-	}
+
 	var schemaNames []string
-	switch cmd {
+	var err error
+	switch ex.command.Clause {
 	case "in":
-		schemaNames, err = ex.getSchemaNames(opts, nil)
+		schemaNames, err = ex.getSchemaNames(ex.command.Args, nil)
 	case "except in":
-		schemaNames, err = ex.getSchemaNames(nil, opts)
+		schemaNames, err = ex.getSchemaNames(nil, ex.command.Args)
 	default:
 		schemaNames, err = ex.getSchemaNames(nil, nil)
 	}
@@ -108,16 +106,13 @@ func (ex *executor) executeTypes() (int, error) {
 
 
 func (ex *executor) executeViews() (int, error) {
-	cmd, opts, err := ex.command.ParseArgs()
-	if err != nil {
-		return 0, err
-	}
 	var schemaNames []string
-	switch cmd {
+	var err error
+	switch ex.command.Clause {
 	case "in":
-		schemaNames, err = ex.getSchemaNames(opts, nil)
+		schemaNames, err = ex.getSchemaNames(ex.command.Args, nil)
 	case "except in":
-		schemaNames, err = ex.getSchemaNames(nil, opts)
+		schemaNames, err = ex.getSchemaNames(nil, ex.command.Args)
 	default:
 		schemaNames, err = ex.getSchemaNames(nil, nil)
 	}
@@ -150,16 +145,13 @@ func (ex *executor) executeViews() (int, error) {
 }
 
 func (ex *executor) executeTables() (int, error) {
-	cmd, opts, err := ex.command.ParseArgs()
-	if err != nil {
-		return 0, err
-	}
 	var schemaNames []string
-	switch cmd {
+	var err error
+	switch ex.command.Clause {
 	case "in":
-		schemaNames, err = ex.getSchemaNames(opts, nil)
+		schemaNames, err = ex.getSchemaNames(ex.command.Args, nil)
 	case "except in":
-		schemaNames, err = ex.getSchemaNames(nil, opts)
+		schemaNames, err = ex.getSchemaNames(nil, ex.command.Args)
 	default:
 		schemaNames, err = ex.getSchemaNames(nil, nil)
 	}
@@ -217,16 +209,11 @@ func (ex *executor) createIndexesAndConstraints(itemType string, schemaName stri
 func (ex *executor) executeConstraints() (int, error) {
 	count := 0
 
-	cmd, opts, err := ex.command.ParseArgs()
-	if err != nil {
-		return count, err
-	}
-
-	if cmd != "on" {
+	if ex.command.Clause != "on" {
 		return count, fmt.Errorf("comma-delimited list of tables is required")
 	}
 
-	for _, n := range opts {
+	for _, n := range ex.command.Args {
 		schemaName, tableName, err := parseSchemaItemName(n)
 		if err != nil {
 			return count, err
@@ -248,16 +235,11 @@ func (ex *executor) executeConstraintsWork(schemaName, tableName string) (int, e
 func (ex *executor) executeIndexes() (int, error) {
 	count := 0
 
-	cmd, opts, err := ex.command.ParseArgs()
-	if err != nil {
-		return count, err
-	}
-
-	if cmd != "on" {
+	if ex.command.Clause != "on" {
 		return count, fmt.Errorf("comma-delimited list of tables or views is required")
 	}
 
-	for _, n := range opts {
+	for _, n := range ex.command.Args {
 		schemaName, tableName, err := parseSchemaItemName(n)
 		if err != nil {
 			return count, err
@@ -279,16 +261,11 @@ func (ex *executor) executeIndexesWork(schemaName, tableOrViewName string) (int,
 func (ex *executor) executeSchemaItem(tableOrView string) (int, error) {
 	count := 0
 
-	_, opts, err := ex.command.ParseArgs()
-	if err != nil {
-		return count, err
-	}
-
-	if len(opts) == 0 {
+	if len(ex.command.Args) == 0 {
 		return count, fmt.Errorf("comma-delimited list of %ss must be provided", tableOrView)
 	}
 
-	for _, n := range opts {
+	for _, n := range ex.command.Args {
 		schemaName, tableOrViewName, err := parseSchemaItemName(n)
 		if err != nil {
 			return count, err
@@ -323,12 +300,7 @@ func (ex *executor) executeSchemaItem(tableOrView string) (int, error) {
 func (ex *executor) executeSchema() (int, error) {
 	count := 0
 
-	_, opts, err := ex.command.ParseArgs()
-	if err != nil {
-		return count, err
-	}
-
-	for _, schemaName := range opts {
+	for _, schemaName := range ex.command.Args {
 		c, err := ex.executeSchemaWork(schemaName)
 		count += c
 		if err != nil {
@@ -364,14 +336,11 @@ func (ex *executor) executeTopLevel(itemType string) (int, error) {
 func (ex *executor) executeSchemas() (int, error) {
 	count := 0
 
-	cmd, opts, err := ex.command.ParseArgs()
-	if err != nil {
-		return count, err
-	}
 	var schemaNames []string
-	switch cmd {
+	var err error
+	switch ex.command.Clause {
 	case "except":
-		schemaNames, err = ex.getSchemaNames(nil, opts)
+		schemaNames, err = ex.getSchemaNames(nil, ex.command.Args)
 	default:
 		schemaNames, err = ex.getSchemaNames(nil, nil)
 	}

@@ -26,17 +26,13 @@ func (ex *executor) executeSeed() (int, error) {
 }
 
 func (ex *executor) executeSeedTables() (int, error) {
-	cmd, opts, err := ex.command.ParseArgs()
-	if err != nil {
-		return 0, err
-	}
-
 	var schemaNames []string
-	switch cmd {
+	var err error
+	switch ex.command.Clause {
 	case "in":
-		schemaNames, err = ex.getSchemaNames(opts, nil)
+		schemaNames, err = ex.getSchemaNames(ex.command.Args, nil)
 	case "except in":
-		schemaNames ,err = ex.getSchemaNames(nil, opts)
+		schemaNames ,err = ex.getSchemaNames(nil, ex.command.Args)
 	default:
 		schemaNames, err = ex.getSchemaNames(nil, nil)
 	}
@@ -60,13 +56,8 @@ func (ex *executor) executeSeedTables() (int, error) {
 }
 
 func (ex *executor) executeSeedTable() (int, error) {
-	_, opts, err := ex.command.ParseArgs()
-	if err != nil {
-		return 0, err
-	}
-
 	count := 0
-	for _, n := range opts {
+	for _, n := range ex.command.Args {
 		schemaName, tableName, err := parseSchemaItemName(n)
 		if err != nil {
 			return count, err
