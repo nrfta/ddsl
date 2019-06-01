@@ -6,7 +6,8 @@ import (
 )
 
 func executor(command string) {
-	err := exec.Execute(cache.repo, cache.url, command)
+	ctx := exec.NewContext(cache.repo, cache.url, false)
+	err := exec.Execute(ctx, command)
 	if err != nil {
 		fmt.Println(err)
 	}

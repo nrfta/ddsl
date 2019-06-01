@@ -33,6 +33,4 @@ func seedTables(cmd *cobra.Command, args []string) {
 
 func init() {
 	seedCmd.AddCommand(seedTablesCmd)
-
-	defineExcludeTableFlag(seedTablesCmd)
 }

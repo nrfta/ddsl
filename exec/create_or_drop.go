@@ -3,7 +3,6 @@ package exec
 import (
 	"errors"
 	"fmt"
-	"github.com/neighborly/ddsl/parser"
 	"path"
 	"strings"
 )
@@ -21,73 +20,83 @@ const (
 	view        string = "view"
 	indexes     string = "indexes"
 	constraints string = "constraints"
+	typeCmd     string = "type"
+	types       string = "types"
 )
 
 var pathPatterns = map[string]string{
-	database:    `database\.%s.*`,
-	extensions:  `extensions\.%s.*`,
-	roles:       `roles\.%s.*`,
+	database:    `database\.%s\..*`,
+	extensions:  `extensions\.%s\..*`,
+	roles:       `roles\.%s\..*`,
 	schemas:     `scheams\.*`,
-	foreignKeys: `foreign_keys\.%s.*`,
-	schema:      `schemas/%s/schema\.%s.*`,
-	tables:      `schemas/%s/tables/.*%s.*`,
-	views:       `schemas/%s/views/.*%s.*`,
-	table:       `schemas/%s/tables/%s\.%s.*`,
-	view:        `schemas/%s/views/%s\.%s.*`,
-	indexes:     `schemas/%s/indexes/%s\.%s.*`,
-	constraints: `schemas/%s/constraints/%s\.%s.*`,
+	foreignKeys: `foreign_keys\.%s\..*`,
+	schema:      `schemas/%s/schema\.%s\..*`,
+	tables:      `schemas/%s/tables/.*\.%s\..*`,
+	views:       `schemas/%s/views/.*\.%s\..*`,
+	types:       `schemas/%s/types/.*\.%s\..*`,
+	table:       `schemas/%s/tables/%s\.%s\..*`,
+	view:        `schemas/%s/views/%s\.%s..*`,
+	indexes:     `schemas/%s/indexes/%s\.%s\..*`,
+	constraints: `schemas/%s/constraints/%s\.%s\..*`,
+	typeCmd:     `schemas/%s/types/%s\.%s\..*`,
 }
 
-func executeCreateOrDrop(ex *executor) (int, error) {
-	var cmd *parser.Command
-	if ex.createOrDrop == create {
-		cmd = ex.parseTree.Create
-	} else {
-		cmd = ex.parseTree.Drop
-	}
-
-	switch {
-	case cmd.Database != nil:
-		return executeDatabase(ex, cmd.Database.Ref)
-	case cmd.Schemas != nil:
-		return executeSchemas(ex, cmd.Schemas.Ref)
-	case cmd.Extensions != nil:
-		return executeTopLevel(ex, extensions, cmd.Extensions.Ref)
-	case cmd.ForeignKeys != nil:
-		return executeTopLevel(ex, foreignKeys, cmd.ForeignKeys.Ref)
-	case cmd.Roles != nil:
-		return executeTopLevel(ex, roles, cmd.Roles.Ref)
-	case cmd.Schema != nil:
-		return executeSchema(ex, cmd.Schema.Name, cmd.Schema.Ref)
-	case cmd.Table != nil:
-		return executeTableOrView(ex, table, cmd.Table.Schema, cmd.Table.TableOrView, cmd.Table.Ref)
-	case cmd.View != nil:
-		return executeTableOrView(ex, view, cmd.View.Schema, cmd.View.TableOrView, cmd.View.Ref)
-	case cmd.Indexes != nil:
-		return executeIndexes(ex, cmd.Indexes.Schema, cmd.Indexes.TableOrView, cmd.Indexes.Ref)
-	case cmd.Constraints != nil:
-		return executeConstraints(ex, cmd.Constraints.Schema, cmd.Constraints.TableOrView, cmd.Constraints.Ref)
-	case cmd.TablesInSchema != nil:
-		return executeTables(ex, cmd.TablesInSchema.Name, cmd.TablesInSchema.Ref)
-	case cmd.ViewsInSchema != nil:
-		return executeViews(ex, cmd.ViewsInSchema.Name, cmd.TablesInSchema.Ref)
+func (ex *executor) executeCreateOrDrop() (int, error) {
+	switch ex.command.CommandDef.Name {
+	case database:
+		return ex.executeDatabase()
+	case schemas:
+		return ex.executeSchemas()
+	case extensions:
+		return ex.executeTopLevel(extensions)
+	case foreignKeys:
+		return ex.executeTopLevel(foreignKeys)
+	case roles:
+		return ex.executeTopLevel(roles)
+	case schema:
+		return ex.executeSchema()
+	case table:
+		return ex.executeSchemaItem(table)
+	case view:
+		return ex.executeSchemaItem(view)
+	case indexes:
+		return ex.executeIndexes()
+	case constraints:
+		return ex.executeConstraints()
+	case tables:
+		return ex.executeTables()
+	case views:
+		return ex.executeViews()
+	case typeCmd:
+		return ex.executeSchemaItem(typeCmd)
+	case types:
+		return ex.executeTypes()
 	}
 
 	return 0, errors.New("unknown command")
 }
 
-func executeViews(ex *executor, schemaName string, ref *parser.Ref) (int, error) {
-	count, err := executeKey(ex, ref, views, schemaName, ex.createOrDrop)
+func (ex *executor) executeTypes() (int, error) {
+	cmd, opts, err := ex.command.ParseArgs()
 	if err != nil {
-		return count, err
+		return 0, err
+	}
+	var schemaNames []string
+	switch cmd {
+	case "in":
+		schemaNames, err = ex.getSchemaNames(opts, nil)
+	case "except in":
+		schemaNames, err = ex.getSchemaNames(nil, opts)
+	default:
+		schemaNames, err = ex.getSchemaNames(nil, nil)
+	}
+	if err != nil {
+		return 0, err
 	}
 
-	if ex.createOrDrop == drop {
-		return count, nil
-	}
-
-	if count > 0 {
-		c, err := createIndexesAndConstraints(ex, schemaName, views, ref)
+	count := 0
+	for _, schemaName := range schemaNames {
+		c, err := ex.executeCreateOrDropKey(types, schemaName)
 		count += c
 		if err != nil {
 			return count, err
@@ -97,29 +106,93 @@ func executeViews(ex *executor, schemaName string, ref *parser.Ref) (int, error)
 	return count, nil
 }
 
-func executeTables(ex *executor, schemaName string, ref *parser.Ref) (int, error) {
-	count, err := executeKey(ex, ref, tables, schemaName, ex.createOrDrop)
+
+func (ex *executor) executeViews() (int, error) {
+	cmd, opts, err := ex.command.ParseArgs()
 	if err != nil {
-		return count, err
+		return 0, err
+	}
+	var schemaNames []string
+	switch cmd {
+	case "in":
+		schemaNames, err = ex.getSchemaNames(opts, nil)
+	case "except in":
+		schemaNames, err = ex.getSchemaNames(nil, opts)
+	default:
+		schemaNames, err = ex.getSchemaNames(nil, nil)
+	}
+	if err != nil {
+		return 0, err
 	}
 
-	if ex.createOrDrop == drop {
-		return count, nil
-	}
-
-	if count > 0 {
-		c, err := createIndexesAndConstraints(ex, schemaName, tables, ref)
+	count := 0
+	for _, schemaName := range schemaNames {
+		c, err := ex.executeCreateOrDropKey(views, schemaName)
 		count += c
 		if err != nil {
 			return count, err
+		}
+
+		if ex.createOrDrop == drop {
+			continue
+		}
+
+		if c > 0 {
+			c, err := ex.createIndexesAndConstraints(views, schemaName)
+			count += c
+			if err != nil {
+				return count, err
+			}
 		}
 	}
 
 	return count, nil
 }
 
-func createIndexesAndConstraints(ex *executor, schemaName string, itemType string, ref *parser.Ref) (int, error) {
-	items, err := ex.namesOf(itemType, schemaName, ref)
+func (ex *executor) executeTables() (int, error) {
+	cmd, opts, err := ex.command.ParseArgs()
+	if err != nil {
+		return 0, err
+	}
+	var schemaNames []string
+	switch cmd {
+	case "in":
+		schemaNames, err = ex.getSchemaNames(opts, nil)
+	case "except in":
+		schemaNames, err = ex.getSchemaNames(nil, opts)
+	default:
+		schemaNames, err = ex.getSchemaNames(nil, nil)
+	}
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, schemaName := range schemaNames {
+		c, err := ex.executeCreateOrDropKey(tables, schemaName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+
+		if ex.createOrDrop == drop {
+			continue
+		}
+
+		if c > 0 {
+			c, err := ex.createIndexesAndConstraints(tables, schemaName)
+			count += c
+			if err != nil {
+				return count, err
+			}
+		}
+	}
+
+	return count, nil
+}
+
+func (ex *executor) createIndexesAndConstraints(itemType string, schemaName string) (int, error) {
+	items, err := ex.namesOf(itemType, schemaName)
 	if err != nil {
 		return 0, err
 	}
@@ -127,13 +200,13 @@ func createIndexesAndConstraints(ex *executor, schemaName string, itemType strin
 	count := 0
 	for _, item := range items {
 
-		c, err := executeConstraints(ex, schemaName, item, ref)
+		c, err := ex.executeConstraintsWork(schemaName, item)
 		count += c
 		if err != nil {
 			return count, err
 		}
 
-		c, err = executeIndexes(ex, schemaName, item, ref)
+		c, err = ex.executeIndexesWork(schemaName, item)
 		count += c
 		return count, err
 	}
@@ -141,111 +214,185 @@ func createIndexesAndConstraints(ex *executor, schemaName string, itemType strin
 	return count, nil
 }
 
-func executeConstraints(ex *executor, schemaName string, tableName string, ref *parser.Ref) (int, error) {
-	return executeKey(ex, ref, constraints, schemaName, tableName, ex.createOrDrop)
-}
-
-func executeIndexes(ex *executor, schemaName string, tableOrViewName string, ref *parser.Ref) (int, error) {
-	return executeKey(ex, ref, indexes, schemaName, tableOrViewName, ex.createOrDrop)
-}
-
-func executeTableOrView(ex *executor, tableOrView string, schemaName string, tableOrViewName string, ref *parser.Ref) (int, error) {
-	count, err := executeKey(ex, ref, tableOrView, schemaName, tableOrViewName, ex.createOrDrop)
-	if err != nil {
-		return count, err
-	}
-
-	if ex.createOrDrop == drop {
-		return count, nil
-	}
-
-	if count > 0 {
-
-		c, err := executeConstraints(ex, schemaName, tableOrViewName, ref)
-		count += c
-		if err != nil {
-			return count, err
-		}
-
-		c, err = executeIndexes(ex, schemaName, tableOrViewName, ref)
-		count += c
-		return count, err
-	}
-
-	return count, nil
-}
-
-func executeSchema(ex *executor, schemaName string, ref *parser.Ref) (int, error) {
-	count, err := executeKey(ex, ref, schema, schemaName, ex.createOrDrop)
-	if err != nil {
-		return count, err
-	}
-
-	if ex.createOrDrop == create && count > 0 {
-
-		// create tables and views as well
-
-		c, err := executeTables(ex, schemaName, ref)
-		count += c
-		if err != nil {
-			return count, err
-		}
-		c, err = executeViews(ex, schemaName, ref)
-		count += c
-		return count, err
-	}
-
-	return count, nil
-}
-
-func executeDatabase(ex *executor, ref *parser.Ref) (int, error) {
-	count, err := executeTopLevel(ex, database, ref)
-	if err != nil {
-		return count, err
-	}
-
-	return count, nil
-}
-
-func executeTopLevel(ex *executor, itemType string, ref *parser.Ref) (int, error) {
-	return executeKey(ex, ref, itemType, ex.createOrDrop)
-}
-
-func executeSchemas(ex *executor, ref *parser.Ref) (int, error) {
+func (ex *executor) executeConstraints() (int, error) {
 	count := 0
-	if ex.createOrDrop == drop {
-		c, err := executeTopLevel(ex, foreignKeys, ref)
+
+	cmd, opts, err := ex.command.ParseArgs()
+	if err != nil {
+		return count, err
+	}
+
+	if cmd != "on" {
+		return count, fmt.Errorf("comma-delimited list of tables is required")
+	}
+
+	for _, n := range opts {
+		schemaName, tableName, err := parseSchemaItemName(n)
+		if err != nil {
+			return count, err
+		}
+
+		c, err := ex.executeConstraintsWork(schemaName, tableName)
 		count += c
 		if err != nil {
 			return count, err
 		}
 	}
 
-	schemaNames, err := ex.getSchemaNames(ref)
+	return count, nil
+}
+func (ex *executor) executeConstraintsWork(schemaName, tableName string) (int, error) {
+	return ex.executeCreateOrDropKey(constraints, schemaName, tableName)
+}
+
+func (ex *executor) executeIndexes() (int, error) {
+	count := 0
+
+	cmd, opts, err := ex.command.ParseArgs()
+	if err != nil {
+		return count, err
+	}
+
+	if cmd != "on" {
+		return count, fmt.Errorf("comma-delimited list of tables or views is required")
+	}
+
+	for _, n := range opts {
+		schemaName, tableName, err := parseSchemaItemName(n)
+		if err != nil {
+			return count, err
+		}
+
+		c, err := ex.executeIndexesWork(schemaName, tableName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
+}
+func (ex *executor) executeIndexesWork(schemaName, tableOrViewName string) (int, error) {
+	return ex.executeCreateOrDropKey(indexes, schemaName, tableOrViewName)
+}
+
+func (ex *executor) executeSchemaItem(tableOrView string) (int, error) {
+	count := 0
+
+	_, opts, err := ex.command.ParseArgs()
+	if err != nil {
+		return count, err
+	}
+
+	if len(opts) == 0 {
+		return count, fmt.Errorf("comma-delimited list of %ss must be provided", tableOrView)
+	}
+
+	for _, n := range opts {
+		schemaName, tableOrViewName, err := parseSchemaItemName(n)
+		if err != nil {
+			return count, err
+		}
+
+		c, err := ex.executeCreateOrDropKey(tableOrView, schemaName, tableOrViewName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+
+		if ex.createOrDrop == drop {
+			continue
+		}
+
+		// when creating a table, also create its constraints and indexes
+		if c > 0 {
+			c, err := ex.executeConstraintsWork(schemaName, tableOrViewName)
+			count += c
+			if err != nil {
+				return count, err
+			}
+
+			c, err = ex.executeIndexesWork(schemaName, tableOrViewName)
+			count += c
+			return count, err
+		}
+	}
+	return count, nil
+}
+
+func (ex *executor) executeSchema() (int, error) {
+	count := 0
+
+	_, opts, err := ex.command.ParseArgs()
+	if err != nil {
+		return count, err
+	}
+
+	for _, schemaName := range opts {
+		c, err := ex.executeSchemaWork(schemaName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
+}
+
+func (ex *executor) executeSchemaWork(schemaName string) (int, error) {
+	count, err := ex.executeCreateOrDropKey(schema, schemaName)
+	if err != nil {
+		return count, err
+	}
+
+	return count, nil
+}
+
+func (ex *executor) executeDatabase() (int, error) {
+	count, err := ex.executeTopLevel(database)
+	if err != nil {
+		return count, err
+	}
+
+	return count, nil
+}
+
+func (ex *executor) executeTopLevel(itemType string) (int, error) {
+	return ex.executeCreateOrDropKey(itemType)
+}
+
+func (ex *executor) executeSchemas() (int, error) {
+	count := 0
+
+	cmd, opts, err := ex.command.ParseArgs()
+	if err != nil {
+		return count, err
+	}
+	var schemaNames []string
+	switch cmd {
+	case "except":
+		schemaNames, err = ex.getSchemaNames(nil, opts)
+	default:
+		schemaNames, err = ex.getSchemaNames(nil, nil)
+	}
 	if err != nil {
 		return count, err
 	}
 
 	for _, schemaName := range schemaNames {
-		c, err := executeSchema(ex, schemaName, ref)
+		c, err := ex.executeSchemaWork(schemaName)
 		count += c
 		if err != nil {
 			return count, err
 		}
 	}
 
-	if ex.createOrDrop == create {
-		c, err := executeTopLevel(ex, foreignKeys, ref)
-		count += c
-		return count, err
-	}
-
 	return count, nil
 }
 
-func executeKey(ex *executor, ref *parser.Ref, patternKey string, params ...interface{}) (int, error) {
+func (ex *executor) executeCreateOrDropKey(patternKey string, params ...interface{}) (int, error) {
 	path := fmt.Sprintf(pathPatterns[patternKey], params...)
-	count, err := ex.execute(path, ref)
+	count, err := ex.execute(path)
 	if err != nil {
 		return count, err
 	}
@@ -254,8 +401,8 @@ func executeKey(ex *executor, ref *parser.Ref, patternKey string, params ...inte
 
 }
 
-func (ex *executor) namesOf(itemType string, schemaName string, ref *parser.Ref) ([]string, error) {
-	if err := ex.getSourceDriver(ref); err != nil {
+func (ex *executor) namesOf(itemType string, schemaName string) ([]string, error) {
+	if err := ex.getSourceDriver(ex.command.Ref); err != nil {
 		return nil, err
 	}
 	defer ex.sourceDriver.Close()
@@ -274,4 +421,13 @@ func (ex *executor) namesOf(itemType string, schemaName string, ref *parser.Ref)
 	}
 
 	return items, nil
+}
+
+func parseSchemaItemName(item string) (schemaName string, tableOrViewName string, err error) {
+	nparts := strings.Split(item, ".")
+	if len(nparts) != 2 {
+		return "", "", fmt.Errorf("tables and views must be defined as <schema_name>.<table_or_view_name>")
+	}
+
+	return nparts[0], nparts[1], nil
 }

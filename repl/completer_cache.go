@@ -19,7 +19,7 @@ func makeCompleterCache(repo, url string) {
 	cache = &completerCache{
 		repo:      repo,
 		url:       url,
-		context:   exec.NewContext(repo, url),
+		context:   exec.NewContext(repo, url, true),
 	}
 }
 

@@ -23,23 +23,25 @@ func completer(d prompt.Document) []prompt.Suggest {
 	}
 
 	if len(args) <= 2 {
-		cmdDef, err := parser.Parse(command)
+		cmd, err := parser.Parse(command)
 		if err != nil {
 			return []prompt.Suggest{}
 		}
 
-		return suggestFromCommandDefs(cmdDef.CommandDefs)
+		return suggestFromCommandDefs(cmd.CommandDef.CommandDefs)
 	}
 
-	rootCmd, err := parser.Parse(args[0])
+	rootC, err := parser.Parse(args[0])
 	if err != nil {
 		return []prompt.Suggest{}
 	}
+	rootCmd := rootC.CommandDef
 
-	cmdDef, err := parser.Parse(strings.Join(args[:2], " "))
+	cmd, err := parser.Parse(strings.Join(args[:2], " "))
 	if err != nil {
 		return []prompt.Suggest{}
 	}
+	cmdDef := cmd.CommandDef
 
 	i := 2
 	nextCmdDef := cmdDef

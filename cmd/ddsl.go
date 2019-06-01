@@ -11,7 +11,8 @@ func RunCommand(repo string, url string, command string) (exitCode int, err erro
 	cmds := strings.Split(command, ";")
 	for _, cmd := range cmds {
 		fmt.Printf("[INFO] *** command: %s ***\n", cmd)
-		if err := exec.Execute(repo, url, cmd); err != nil {
+		ctx := exec.NewContext(repo, url, true)
+		if err := exec.Execute(ctx, cmd); err != nil {
 			return 1, err
 		}
 	}

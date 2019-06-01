@@ -3,6 +3,7 @@ package exec
 import (
 	"errors"
 	"fmt"
+	"github.com/forestgiant/sliceutil"
 	dbdr "github.com/neighborly/ddsl/drivers/database"
 	"github.com/neighborly/ddsl/drivers/database/postgres"
 	"github.com/neighborly/ddsl/drivers/source"
@@ -20,11 +21,11 @@ func init() {
 }
 
 type executor struct {
-	ctx *Context
+	ctx          *Context
 	sourceDriver source.Driver
 	dbDriver     dbdr.Driver
 	databaseName string
-	cmdDef *parser.CommandDef
+	command      *parser.Command
 	createOrDrop string
 }
 
@@ -34,10 +35,11 @@ const (
 )
 
 func Execute(ctx *Context, command string) error {
-	cmdDef, err := parser.Parse(command)
+	cmd, err := parser.Parse(command)
 	if err != nil {
 		return err
 	}
+	cmdDef := cmd.CommandDef
 
 	dbDriver, err := dbdr.Open(ctx.DatbaseUrl)
 	if err != nil {
@@ -54,11 +56,11 @@ func Execute(ctx *Context, command string) error {
 			return fmt.Errorf("database commands cannot be run within a transaction")
 		}
 		ex := &executor{
-			ctx: ctx,
-			dbDriver:  dbDriver,
-			cmdDef: cmdDef,
+			ctx:      ctx,
+			dbDriver: dbDriver,
+			command:  cmd,
 		}
-		c, err := ex.execute()
+		c, err := ex.executeCmd()
 		count += c
 		if err != nil {
 			return err
@@ -68,13 +70,13 @@ func Execute(ctx *Context, command string) error {
 
 	dryRun := viper.GetBool("dry_run")
 
-	logLevel := "INFO"
+	logLevel := log.LEVEL_INFO
 	if dryRun {
-		logLevel = "DRY-RUN"
+		logLevel = log.LEVEL_DRY_RUN
 	}
 
 	if ctx.AutoTransaction {
-		log.log(logLevel, "beginning transaction")
+		log.Log(logLevel, "beginning transaction")
 		if !dryRun {
 			err = dbDriver.Begin()
 			if err != nil {
@@ -84,19 +86,19 @@ func Execute(ctx *Context, command string) error {
 	}
 
 	ex := &executor{
-		ctx: ctx,
+		ctx:      ctx,
 		dbDriver: dbDriver,
-		cmdDef: cmdDef,
+		command:  cmd,
 	}
 
-	c, err := ex.execute()
+	c, err := ex.executeCmd()
 	count += c
 	if err != nil {
-		logLevel = "WARN"
+		logLevel := log.LEVEL_WARN
 		if dryRun {
-			logLevel = "DRY-RUN"
+			logLevel = log.LEVEL_DRY_RUN
 		}
-		log.log(logLevel, "rolling back transaction\n", logLevel)
+		log.Log(logLevel, "rolling back transaction\n")
 		if !dryRun {
 			_ = dbDriver.Rollback()
 		}
@@ -104,7 +106,7 @@ func Execute(ctx *Context, command string) error {
 	}
 
 	if ctx.AutoTransaction {
-		log.log(logLevel, "committing transaction")
+		log.Log(logLevel, "committing transaction")
 		if err = dbDriver.Commit(); err != nil {
 			return err
 		}
@@ -119,8 +121,8 @@ func Execute(ctx *Context, command string) error {
 	return nil
 }
 
-func (ex *executor) execute() (int, error) {
-	topCmd := ex.cmdDef.ParentAtLevel(1)
+func (ex *executor) executeCmd() (int, error) {
+	topCmd := ex.command.CommandDef.ParentAtLevel(1)
 	switch topCmd.Name {
 	case create:
 		ex.createOrDrop = create
@@ -132,22 +134,23 @@ func (ex *executor) execute() (int, error) {
 		return ex.executeMigrate()
 	case "sql":
 		dryRun := viper.GetBool("dry_run")
-		logLevel := "INFO"
+		logLevel := log.LEVEL_INFO
 		if dryRun {
-			logLevel = "DRY-RUN"
+			logLevel = log.LEVEL_DRY_RUN
 		}
-		log.log(logLevel, "executing SQL statement\n", logLevel)
+		log.Log(logLevel, "executing SQL statement\n")
 		if dryRun {
 			return 1, nil
 		}
-		return 1, ex.dbDriver.Exec(strings.NewReader(*ex.parseTree.Sql))
+		sql := ex.command.Args[0]
+		return 1, ex.dbDriver.Exec(strings.NewReader(sql))
 	}
 
 	return 0, errors.New("unknown command")
 }
 
-func (ex *executor) getSourceDriver(ref *parser.Ref) error {
-	url := strings.TrimRight(ex.repo, "/")
+func (ex *executor) getSourceDriver(ref *string) error {
+	url := strings.TrimRight(ex.ctx.SourceRepo, "/")
 
 	i := strings.LastIndex(url, "/")
 	if i == -1 {
@@ -156,7 +159,7 @@ func (ex *executor) getSourceDriver(ref *parser.Ref) error {
 	ex.databaseName = url[i+1:]
 
 	if ref != nil {
-		url += "#" + strings.TrimLeft(ref.Ref, "@")
+		url += "#" + *ref
 	}
 	sourceDriver, err := source.Open(url)
 	if err != nil {
@@ -168,8 +171,8 @@ func (ex *executor) getSourceDriver(ref *parser.Ref) error {
 	return nil
 }
 
-func (ex *executor) execute(pathPattern string, ref *parser.Ref) (int, error) {
-	if err := ex.getSourceDriver(ref); err != nil {
+func (ex *executor) execute(pathPattern string) (int, error) {
+	if err := ex.getSourceDriver(ex.command.Ref); err != nil {
 		return 0, err
 	}
 	defer ex.sourceDriver.Close()
@@ -185,11 +188,11 @@ func (ex *executor) execute(pathPattern string, ref *parser.Ref) (int, error) {
 	dryRun := viper.GetBool("dry_run")
 
 	for _, fr := range readers {
-		logLevel := "INFO"
+		logLevel := log.LEVEL_INFO
 		if dryRun {
-			logLevel = "DRY-RUN"
+			logLevel = log.LEVEL_DRY_RUN
 		}
-		log.log(logLevel, "executing %s\n", logLevel, fr.FilePath)
+		log.Log(logLevel, "executing %s\n", fr.FilePath)
 		if dryRun {
 			continue
 		}
@@ -202,8 +205,8 @@ func (ex *executor) execute(pathPattern string, ref *parser.Ref) (int, error) {
 	return fileCount, nil
 }
 
-func (ex *executor) getSchemaNames(ref *parser.Ref) ([]string, error) {
-	if err := ex.getSourceDriver(ref); err != nil {
+func (ex *executor) getSchemaNames(in, except []string) ([]string, error) {
+	if err := ex.getSourceDriver(ex.command.Ref); err != nil {
 		return nil, err
 	}
 	defer ex.sourceDriver.Close()
@@ -213,9 +216,21 @@ func (ex *executor) getSchemaNames(ref *parser.Ref) ([]string, error) {
 		return nil, err
 	}
 
+	if in == nil {
+		in = []string{}
+	}
+	if except == nil {
+		except = []string{}
+	}
+
 	schemaNames := []string{}
 	for _, dr := range dirReaders {
-		schemaNames = append(schemaNames, path.Base(dr.DirectoryPath))
+		schemaName := path.Base(dr.DirectoryPath)
+		if (len(in) > 0 && sliceutil.Contains(in, schemaName)) ||
+			(len(except) > 0 && !sliceutil.Contains(except, schemaName)) ||
+			(len(in) == 0 && len(except) == 0) {
+			schemaNames = append(schemaNames, schemaName)
+		}
 	}
 
 	return schemaNames, nil
