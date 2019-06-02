@@ -68,11 +68,11 @@ create extensions [ (in | except in) <schema_name>[,<schema_name> ...] ]
 create tables [ (in | except in) <schema_name>[,<schema_name> ...] ]
 create views [ (in | except in) <schema_name>[,<schema_name> ...] ]
 create types [ (in | except in) <schema_name>[,<schema_name> ...] ]
-create table <schema_name>.<table_name>[,<schema_name.table_name> ...]
-create view <schema_name>.<view_name>[,<schema_name.view_name> ...]
-create type <schema_name>.<type_name>[,<schema_name.type_name> ...]
-create constraints on <schema_name>.<table_name>[,<schema_name.table_name> ...]
-create indexes on <schema_name>.<table_or_view_name>[,<schema_name.table_or_view_name> ...]
+create table <schema_name.table_name>[,<schema_name.table_name> ...]
+create view <schema_name.view_name>[,<schema_name.view_name> ...]
+create type <schema_name.type_name>[,<schema_name.type_name> ...]
+create constraints on <schema_name.table_name>[,<schema_name.table_name> ...]
+create indexes on <schema_name.table_or_view_name>[,<schema_name.table_or_view_name> ...]
 ```
 
 `drop` syntax is the same as `create`.
