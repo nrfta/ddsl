@@ -28,9 +28,11 @@ go get github.com/neighborly/ddsl
 
 ```$sh
 # execute commands directly
-ddsl -s <source_repo> -d <database_rds_url> COMMAND
+ddsl -s <source_repo> -d <database_rds_url> COMMAND 
+
 # execute commands as a script
 ddsl -s <source_repo> -d <database_rds_url> -f /pat/to/file.ddsl
+
 # open a REPL shell
 ddsl -s <source_repo> -d <database_rds_url>
 ```
