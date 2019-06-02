@@ -130,6 +130,8 @@ The following structure is required.
   📂 <database_name>
     📄 database.create.<ext> 
     📄 database.drop.<ext>
+    📄 database.grank.<ext> 
+    📄 database.revoke.<ext>
     📄 foreign_keys.create.<ext>  
     📄 foreign_keys.drop.<ext>
     📄 roles.create.<ext>
@@ -140,6 +142,8 @@ The following structure is required.
         📄 extensions.drop.<ext>
         📄 schema.create.<ext>
         📄 schema.drop.<ext>
+        📄 schema.grant.<ext>
+        📄 schema.revoke.<ext>
         📂 constraints
           📄 <table_or_view_name>.create.<ext>
           📄 <table_or_view_name>.drop.<ext>
