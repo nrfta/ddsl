@@ -3,57 +3,91 @@ package exec
 import (
 	"errors"
 	"fmt"
-	"github.com/neighborly/ddsl/parser"
-	"github.com/spf13/viper"
+	"github.com/neighborly/ddsl/log"
 	"path"
 	"strings"
 )
 
 var seedPatterns = map[string]string{
-	tables:      `schemas/%s/tables/.*\.seed\..*`,
-	table:       `schemas/%s/tables/%s\.seed\..*`,
+	TABLES: `schemas/%s/tables/.*\.seed\..*`,
+	TABLE:  `schemas/%s/tables/%s\.seed\..*`,
 }
 
-func executeSeed(ex *executor) (int, error) {
-	cmd := ex.parseTree.Seed
-
-	switch {
-	case cmd.Table != nil:
-		return executeSeedTableOrView(ex, table, cmd.Table.Schema, cmd.Table.TableOrView, cmd.Table.Ref)
-	case cmd.TablesInSchema != nil:
-		return executeSeedTables(ex, cmd.TablesInSchema.Name, cmd.TablesInSchema.Ref)
+func (ex *executor) executeSeed() (int, error) {
+	switch ex.command.CommandDef.Name {
+	case TABLE:
+		return ex.executeSeedTable()
+	case TABLES:
+		return ex.executeSeedTables()
 	}
 
 	return 0, errors.New("unknown command")
 }
 
-func executeSeedTables(ex *executor, schemaName string, ref *parser.Ref) (int, error) {
-	params := map[string]string{
-		"schemaName": schemaName,
+func (ex *executor) executeSeedTables() (int, error) {
+	var schemaNames []string
+	var err error
+	switch ex.command.Clause {
+	case "in":
+		schemaNames, err = ex.getSchemaNames(ex.command.Args, nil)
+	case "except in":
+		schemaNames ,err = ex.getSchemaNames(nil, ex.command.Args)
+	default:
+		schemaNames, err = ex.getSchemaNames(nil, nil)
 	}
-	return executeSeedKey(ex, ref, tables, params)
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, schemaName := range schemaNames {
+		params := map[string]string {
+			"schemaName": schemaName,
+		}
+		c, err := ex.executeSeedKey(TABLES, params)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
 }
 
-func executeSeedTableOrView(ex *executor, tableOrView string, schemaName string, tableName string, ref *parser.Ref) (int, error) {
-	params := map[string]string{
-		"schemaName": schemaName,
-		"tableName": tableName,
+func (ex *executor) executeSeedTable() (int, error) {
+	count := 0
+	for _, n := range ex.command.Args {
+		schemaName, tableName, err := parseSchemaItemName(n)
+		if err != nil {
+			return count, err
+		}
+
+		params := map[string]string {
+			"schemaName": schemaName,
+			"tableName": tableName,
+		}
+		c, err := ex.executeSeedKey(TABLE, params)
+		count += c
+		if err != nil {
+			return count, err
+		}
 	}
-	return executeSeedKey(ex, ref, tableOrView, params)
+
+	return count, nil
 }
 
-func executeSeedKey(ex *executor, ref *parser.Ref, patternKey string, params map[string]string) (int, error) {
+func (ex *executor) executeSeedKey(patternKey string, params map[string]string) (int, error) {
 	fparams := []interface{}{}
-	for _, s := range params {
-		fparams = append(fparams, s)
+	for _, p := range params {
+		fparams = append(fparams, p)
 	}
 	path := fmt.Sprintf(seedPatterns[patternKey], fparams...)
-	count, err := ex.executeSeed(path, ref, params)
+	count, err := ex.executeSeedWork(path, params)
 	return count, err
 }
 
-func (ex *executor) executeSeed(pathPattern string, ref *parser.Ref, params map[string]string) (int, error) {
-	if err := ex.getSourceDriver(ref); err != nil {
+func (ex *executor) executeSeedWork(pathPattern string, params map[string]string) (int, error) {
+	if err := ex.getSourceDriver(ex.command.Ref); err != nil {
 		return 0, err
 	}
 	defer ex.sourceDriver.Close()
@@ -66,8 +100,6 @@ func (ex *executor) executeSeed(pathPattern string, ref *parser.Ref, params map[
 
 	count := 0
 
-	dryRun := viper.GetBool("dry_run")
-
 	for _, fr := range readers {
 		ext := path.Ext(fr.FilePath)
 		action := ""
@@ -77,29 +109,29 @@ func (ex *executor) executeSeed(pathPattern string, ref *parser.Ref, params map[
 		case ".sql": // TODO ".sh", ".ddsl":
 			action = "seeding with SQL"
 		default:
-			return count, fmt.Errorf("[ERROR] unsupported file %s", fr.FilePath)
+			return count, fmt.Errorf("unsupported file %s", fr.FilePath)
 		}
 
 		count++
 
-		logLevel := "INFO"
-		if dryRun {
-			logLevel = "DRY-RUN"
+		logLevel := log.LEVEL_INFO
+		if ex.ctx.DryRun {
+			logLevel = log.LEVEL_DRY_RUN
 		}
-		fmt.Printf("[%s] %s %s\n", logLevel, action, fr.FilePath)
-		if dryRun {
+		log.Log(logLevel,"%s %s", action, fr.FilePath)
+		if ex.ctx.DryRun {
 			continue
 		}
 
 		switch ext {
 		case ".sql":
-			if err = ex.dbDriver.Exec(fr.Reader); err != nil {
+			if err = ex.ctx.dbDriver.Exec(fr.Reader); err != nil {
 				return count, err
 			}
 		case ".csv":
 			filename := path.Base(fr.FilePath)
 			tablename := strings.Split(filename, ".")[0]
-			if err = ex.dbDriver.ImportCSV(fr.FilePath, params["schemaName"], tablename,",", true); err != nil {
+			if err = ex.ctx.dbDriver.ImportCSV(fr.FilePath, params["schemaName"], tablename,",", true); err != nil {
 				return count, err
 			}
 		}

@@ -2,241 +2,241 @@ package parser
 
 import (
 	"bufio"
-	"errors"
-	"github.com/alecthomas/participle"
-	"github.com/alecthomas/participle/lexer"
+	"fmt"
+	"github.com/mattn/go-shellwords"
 	"strings"
 )
 
-// DDSL is the top level struct of the parser. Only one of the members will be populated.
-type DDSL struct {
-	Create  *Command     `"CREATE" @@`
-	Drop    *Command     `| "DROP" @@`
-	Migrate *Migrate     `| "MIGRATE" @@`
-	Sql     *string      `| "SQL" @Sql`
-	Seed    *SeedCommand `| "SEED" @@`
-}
-
-// Command contains details of a create or drop command. Only one of the members will be `true` or populated.
 type Command struct {
-	Database       *Database    `"DATABASE" @@`
-	Roles          *Roles       `| "ROLES" @@`
-	Extensions     *Extensions  `| "EXTENSIONS" @@`
-	Schemas        *Schemas     `| "SCHEMAS" @@`
-	ForeignKeys    *ForeignKeys `| ("FOREIGN" "KEYS") @@`
-	Schema         *Name        `| "SCHEMA" @@`
-	TablesInSchema *Name        `| "TABLES" "IN" @@`
-	ViewsInSchema  *Name        `| "VIEWS" "IN" @@`
-	Table          *SchemaItem  `| "TABLE" @@`
-	View           *SchemaItem  `| "VIEW" @@`
-	Indexes        *SchemaItem  `| "INDEXES" "ON" @@`
-	Constraints    *SchemaItem  `| "CONSTRAINTS" "ON" @@`
+	Text       string
+	CommandDef *CommandDef
+	RootDef    *CommandDef
+	Clause     string
+	Args       []string
+	ExtArgs    []string
+	Ref        *string
 }
 
-type SeedCommand struct {
-	Table          *SchemaItem `"TABLE" @@`
-	TablesInSchema *Name       `| "TABLES" "IN" @@`
-}
+var shellParser *shellwords.Parser
 
-// Database contains details for action on a database.
-type Database struct {
-	Ref *Ref `[@@]`
-}
-
-// Roles contains details for action on roles.
-type Roles struct {
-	Ref *Ref `[@@]`
-}
-
-// Extensions contains details for action on extensions.
-type Extensions struct {
-	Ref *Ref `[@@]`
-}
-
-// Schemas contains details for action on schemas.
-type Schemas struct {
-	Ref *Ref `[@@]`
-}
-
-// ForeignKeys contains details for action on a foreign keys.
-type ForeignKeys struct {
-	Ref *Ref `[@@]`
-}
-
-// SchemaItem contains the schema and table or view when it is the object of the command.
-type SchemaItem struct {
-	Item        string `@SchemaItem`
-	Ref         *Ref   `[@@]`
-	TableOrView string
-	Schema      string
-}
-
-type Name struct {
-	Name string `@Ident`
-	Ref  *Ref   `[@@]`
-}
-
-// Tag contains the git tag to run the DDSL command against.
-type Ref struct {
-	Ref string `@Ref`
-}
-
-// Migrate contains the migration command. Only one of the members will be `true` or nonzero.
-type Migrate struct {
-	Top    bool `@"TOP"`
-	Bottom bool `| @"BOTTOM"`
-	Up     *int `| "UP" @Int`
-	Down   *int `| "DOWN" @Int`
-}
-
-var (
-	re = `(\s+)` +
-		`|(?P<Keyword>(?i)CREATE|DROP|SEED|DATABASE|ROLES|EXTENSIONS|SCHEMAS|FOREIGN|KEYS|SCHEMA|TABLES|TABLE|VIEWS|VIEW|INDEXES|CONSTRAINTS|IN|ON|MIGRATE|TOP|BOTTOM|UP|DOWN|SQL)` +
-	// TODO: make schema optional and just have term after the dot (public schema)
-		`|(?P<SchemaItem>[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)` +
-		`|(?P<Ident>[a-zA-Z_][a-zA-Z0-9_]*)` +
-		"|(?P<Sql>(?s)`(.|\\n)*`)" +
-		`|(?P<Ref>@[a-zA-Z0-9_\-\.\/]*)` +
-		`|(?P<Comment>--.*)` +
-		`|(?P<MultiComment>(?s)/\*(.*|\n)\*/)` +
-		`|(?P<Int>\d*)`
-
-	ddslEbnf = `
-		Keyword = ( "CREATE" | "DROP" | "DATABASE" | "ROLES" | "EXTENSIONS" | "FOREIGN" | "KEYS" | "SCHEMA" | "TABLES" | "TABLE" | "VIEWS" | "VIEW" | "INDEXES" | "CONSTRAINTS" | "IN" | "ON" | "MIGRATE" | "TOP" | "BOTTOM" | "UP" | "DOWN" | "SQL" ) .
-	    Comment = "--" {  any_no_newline } .
-		MultiComment = "/*" { any } "*/" .
-		Ident = (alpha | "_") { "_" | alpha | digit } .
-		SchemaItem = Ident [ "." Ident ] .
-		Ref = "@" ( alpha | digit ) { alpha | digit | "_" | "." | "-" | "/" } .
-		Int = { digit } .
-		alpha = "a"…"z" | "A"…"Z" .
-		digit = "0"…"9" .
-		punct = "!"…"/" | ":"…"@" | "["…"_" | "{"…"~" .
-		any = "\u0000"…"\uffff" .
-		any_no_newline = ( "\u0000"…"\u0009" | "\u000e"…"\uffff" ) .
-		newline = ( "\n" | "\r" ) . ` +
-		"Sql = \"`\" { alpha | digit | punct } \"`\" ."
-
-	//ddslLexer = lexer.Must(ebnf.New(ddslEbnf))
-
-	ddslLexer = lexer.Must(lexer.Regexp(re))
-
-	ddslParser = participle.MustBuild(
-		&DDSL{},
-		participle.Lexer(ddslLexer),
-		participle.CaseInsensitive("Keyword"),
-		participle.Elide("Comment", "MultiComment"),
-	)
-)
-
-// Parse parses an input of one or more commands and returns a slice of parse trees.
-func Parse(commands string) ([]*DDSL, error) {
-	scanner := bufio.NewScanner(strings.NewReader(commands))
-	var trees []*DDSL
-	multiline := ""
-	command := ""
+func Parse(text string) (cmds []*Command, hasTx bool, hasDB bool, err error) {
+	cmds = []*Command{}
+	scanner := bufio.NewScanner(strings.NewReader(text))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if len(line) == 0 {
+
+		// skip blank and comment line
+		if len(line) == 0 || strings.HasPrefix(line, "#") {
 			continue
 		}
-
-		if len(multiline) > 0 {
-			multiline += "\n" + line
-			// We're in multiline so another backtick signals end of command
-			if strings.Contains(line, "`") {
-				command = multiline
-				multiline = ""
-			}
-		} else {
-			countTicks := strings.Count(line, "`")
-			switch {
-
-			// Zero or 2 backticks on a line means command is a one-liner
-			case countTicks == 0 || countTicks == 2:
-				command = line
-
-			// Single backtick means enter multiline mode
-			case countTicks == 1:
-				multiline = line
-
-			default:
-				return nil, errors.New("syntax error: too many backticks on a line")
-			}
+		// ignore everything including and after #
+		i := strings.Index(line, "#")
+		if i > -1 {
+			line = strings.TrimSpace(line[:i])
 		}
 
-		// Once command is complete, parse it
-		if len(command) > 0 {
-			tree, err := parse(command)
+		cs := strings.Split(line, ";")
+		for _, line = range cs {
+			line = strings.TrimSpace(line)
+			if len(line) == 0 {
+				continue
+			}
+			cmd, err := parse(line)
 			if err != nil {
-				return nil, err
+				return nil, false, false, err
 			}
-			trees = append(trees, tree)
-			command = ""
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+				rootName := cmd.RootDef.Name
+				if rootName == "begin" {
+					hasTx = true
+				}
+				if (rootName == "create" || rootName == "drop") && cmd.CommandDef.Name == "database" {
+					hasDB = true
+				}
+			}
 		}
 	}
 
-	return trees, nil
-}
-
-func parse(command string) (*DDSL, error) {
-	tree := &DDSL{}
-	err := ddslParser.ParseString(command, tree)
-	if err == nil {
-		// Some commands require a bit of touch up
-		if tree.Sql != nil {
-			sql := *tree.Sql
-			trimmedSql := strings.Trim(sql, "`")
-			tree.Sql = &trimmedSql
-		}
-		if tree.Create != nil {
-			if tree.Create.Table != nil {
-				tree.Create.Table.populate()
-			}
-			if tree.Create.View != nil {
-				tree.Create.View.populate()
-			}
-			if tree.Create.Indexes != nil {
-				tree.Create.Indexes.populate()
-			}
-			if tree.Create.Constraints != nil {
-				tree.Create.Constraints.populate()
-			}
-		}
-		if tree.Drop != nil {
-			if tree.Drop.Table != nil {
-				tree.Drop.Table.populate()
-			}
-			if tree.Drop.View != nil {
-				tree.Drop.View.populate()
-			}
-			if tree.Drop.Indexes != nil {
-				tree.Drop.Indexes.populate()
-			}
-			if tree.Drop.Constraints != nil {
-				tree.Drop.Constraints.populate()
-			}
-		}
-		if tree.Seed != nil {
-			if tree.Seed.Table != nil {
-				tree.Seed.Table.populate()
-			}
-		}
-
+	if hasTx && hasDB {
+		return cmds, hasTx, hasDB, fmt.Errorf("cannot create or drop database in transaction")
 	}
-	return tree, err
 
+	return
 }
 
-// Split `schema.table_or_view` in to schema and table_or_view fields
-func (si *SchemaItem) populate() {
-	if len(si.Item) > 0 {
-		parts := strings.Split(si.Item, ".")
-		if len(parts) == 0 {
-			si.TableOrView = si.Item
+func parse(command string) (*Command, error) {
+	cmd, remainder, err := TryParse(command)
+	if !cmd.CommandDef.IsPrimary() {
+		return cmd, fmt.Errorf("primary command token not found")
+	}
+
+	if err != nil {
+		return cmd, err
+	}
+
+	clause, extArgs, err := cmd.parseRemainder(remainder)
+	if err != nil {
+		return cmd, err
+	}
+	cmd.Clause = clause
+	cmd.ExtArgs = extArgs
+	cmd.Text = command
+
+	return cmd, err
+}
+
+// TryParse parses the given partial command and returns the deepest associated `Command`.
+// This is used for repl and commandline completions.
+func TryParse(command string) (cmd *Command, remainder []string, err error) {
+	if len(command) == 0 {
+		return nil, nil, fmt.Errorf("no command was provided")
+	}
+
+	tokens, err := shellParser.Parse(command)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cmdDefs := ParseTree.CommandDefs
+	args := []string{}
+	remainder = []string{}
+	err = fmt.Errorf("syntax error in '%s'", command)
+	var cmdDef *CommandDef
+
+	for i, token := range tokens {
+		next, ok := cmdDefs[strings.ToLower(token)]
+		if ok {
+			tokenIndex := i
+			if next.HasExtArgs() {
+				for a := 0; a < len(next.ArgDefs); a++ {
+					if tokenIndex+1 < len(tokens) {
+						tokenIndex++
+						args = append(args, tokens[tokenIndex])
+					} else {
+						break
+					}
+				}
+			}
+			if len(tokens[tokenIndex:]) > 1 {
+				remainder = tokens[tokenIndex+1:]
+			} else {
+				remainder = []string{}
+			}
+			cmdDef = next
+			cmdDefs = next.CommandDefs
+			if cmdDef.IsPrimary() {
+				err = nil
+				break
+			}
 		} else {
-			si.Schema = parts[0]
-			si.TableOrView = parts[1]
+			if len(cmdDef.ArgDefs) > 0 {
+				// token is not a command, so assume it's an arg,
+				// do not advance down the parse tree
+				args = append(args, token)
+			} else {
+				next, _ = cmdDef.skipOptionalTo(token)
+				if next == nil {
+					err = fmt.Errorf("syntax error at '%s'", token)
+					remainder = tokens[i:]
+					break
+				}
+				// advance down the parse tree
+				cmdDef = next
+				cmdDefs = next.CommandDefs
+			}
 		}
+	}
+
+	if cmdDef != nil {
+		cmd = makeCommand(cmdDef, args)
+	}
+	return
+}
+
+func (c *Command) parseRemainder(tokens []string) (clause string, extArgs []string, err error) {
+	clause = ""
+	extArgs = []string{}
+	err = nil
+	if len(tokens) == 0 {
+		return
+	}
+
+	clauseSl := []string{}
+	cmdDef := c.CommandDef
+	for _, tokenOrig := range tokens {
+		token := strings.ToLower(tokenOrig)
+		next, ok := cmdDef.CommandDefs[token]
+		if ok {
+			clauseSl = append(clauseSl, token)
+		} else {
+			if len(cmdDef.ArgDefs) > 0 {
+				// assume the rest is args
+				clause = strings.Join(clauseSl, " ")
+				extArgs = strings.Split(tokenOrig, ",")
+				return
+			}
+			var skipped []string
+			next, skipped = cmdDef.skipOptionalTo(token)
+			if next == nil {
+				err = fmt.Errorf("syntax error at '%s'", token)
+				return
+			}
+			clauseSl = append(clauseSl, skipped...)
+		}
+		cmdDef = next
+	}
+	clause = strings.Join(clauseSl, " ")
+	return
+}
+
+func (c *CommandDef) skipOptionalTo(token string) (*CommandDef, []string) {
+	if len(c.CommandDefs) == 0 {
+		return nil, []string{}
+	}
+	return c._skipOptionalToWork(token, []string{})
+}
+
+func (c *CommandDef) _skipOptionalToWork(token string, skipped []string) (*CommandDef, []string) {
+	for _, next := range c.CommandDefs {
+		if next.Name == strings.ToLower(token) {
+			return next, skipped
+		}
+		if next.IsOptional() {
+			skipped = append(skipped, next.Name)
+			return next._skipOptionalToWork(token, skipped)
+		}
+	}
+	return nil, skipped
+}
+
+// ShortDesc returns the `ShortDesc` field of a command. ShortDesc panics
+// if the command is zero length or contains an unrecognized command.
+func ShortDesc(command string) string {
+	cmd, _, err := TryParse(command)
+	if cmd == nil {
+		panic(err.Error())
+	}
+
+	return cmd.CommandDef.ShortDesc
+}
+
+func makeCommand(cmdDef *CommandDef, args []string) *Command {
+	lastArg := ""
+	if len(args) > 0 {
+		lastArg = args[len(args)-1]
+	}
+
+	var ref *string
+	if len(lastArg) > 0 && strings.HasPrefix(lastArg, "@") {
+		r := lastArg[1:]
+		ref = &r
+		args = args[:len(args)-1]
+	}
+	return &Command{
+		CommandDef: cmdDef,
+		RootDef:    cmdDef.getRoot(),
+		Args:       args,
+		Ref:        ref,
 	}
 }

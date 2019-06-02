@@ -5,6 +5,7 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	nurl "net/url"
@@ -73,8 +74,17 @@ type Driver interface {
 	// Execute should execute the given command against the database.
 	Exec(command io.Reader, params ...interface{}) error
 
+	// Query should query the database and return results
+	Query(command io.Reader, params ...interface{}) (*sql.Rows, error)
+
 	// ImportCSV imports a csv file into the database.
 	ImportCSV(filePath, schemaName, tableName, delimiter string, header bool) error
+
+	// User returns the database user.
+	User() string
+
+	// DatabaseName returns the name of the database.
+	DatabaseName() string
 }
 
 // Open returns a new driver instance.

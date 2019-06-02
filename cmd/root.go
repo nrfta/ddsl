@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/exec"
+	"github.com/neighborly/ddsl/repl"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -11,68 +13,72 @@ import (
 // Set this value using the Go linker based on git tag. See https://stackoverflow.com/a/11355611
 var appVersion string
 
-var version bool
-var command string
-var file string
-
+var (
+	version bool
+	file string
+	schemas []string
+	tables []string
+	views []string
+	excludeSchemas []string
+	excludeTables []string
+	excludeViews []string
+)
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "ddsl [OPTIONS] [COMMAND]",
-	Short: `Data-Definition-Specific Language (DDSL, pronounced "diesel") provides a scripting language for DDL and migrations.`,
-	Long: `ddsl executes commands written in DDSL. Commands can either be one-off or stored in a ddsl file. 
-In addition, ddsl files may made directly executable.
+	Short: `Data-Definition-Specific Language (DDSL, pronounced "diesel") 
+provides a scripting language for DDL and migrations.`,
+	Long: `ddsl executes commands written in DDSL. Commands can either be
+one-off or stored in a ddsl file. In addition, ddsl files may made directly
+executable.
 
-Run a one-off command:
-    ddsl [OPTIONS] -c "COMMAND"
+Run the REPL shell:
+    ddsl
+
+Run ddsl commands from the command line:
+    ddsl [OPTIONS] command
 
 Run commands from a ddsl file:
     ddsl [OPTIONS] -f /path/to/file.ddsl
 
-Make ddsl file executable with "chmod +x file.ddsl" and adding shebang:
+Make ddsl file executable with "chmod +x file.ddsl" and adding shebang.
+Requires environment variables to set options. The "ddsl" command is
+omitted from the beginning of each line.
     #!/usr/bin/env ddsl
-    COMMAND
-	COMMAND
+    begin transaction;
+    command; command;
+    command;
+    commit transaction;
     etc...`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		db := viper.GetString("database")
-		src := viper.GetString("source")
-
+		exitCode := 0
 		switch {
 
 		case version:
 			fmt.Println("ddsl version", appVersion)
-			os.Exit(0)
-
-		case len(command) > 0 && len(file) > 0:
-			fmt.Println("[ERROR] file and command arguments cannot be used together")
-			os.Exit(1)
-
-		case len(command) > 0:
-			ensureArgs(src, db)
-			exitCode, err := runCommand(src, db, command)
-			if err != nil {
-				fmt.Printf("[ERROR] %s", err)
-			}
-			os.Exit(exitCode)
 
 		case len(file) > 0:
-			ensureArgs(src, db)
-			exitCode, err := runFile(src, db, file)
+			ec, err := runFile(file)
 			if err != nil {
 				fmt.Println(err)
 			}
-			os.Exit(exitCode)
+			exitCode = ec
 
 		default:
-			fmt.Println("[ERROR] unknown usage")
-			cmd.Usage()
-			os.Exit(1)
+			ec, err := repl.Run(makeExecContext(false))
+			if err != nil {
+				fmt.Println(err)
+			}
+			exitCode = ec
 		}
+		os.Exit(exitCode)
 	},
 }
 
-func ensureArgs(src string, db string) {
+func makeExecContext(autoTx bool) *exec.Context {
+	db := viper.GetString("database")
+	src := viper.GetString("source")
 	if len(db) == 0 {
 		fmt.Println("no database URL provided")
 		os.Exit(1)
@@ -81,6 +87,7 @@ func ensureArgs(src string, db string) {
 		fmt.Println("no source repository provided")
 		os.Exit(1)
 	}
+	return exec.NewContext(src, db, autoTx, viper.GetBool("dry_run"))
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -105,13 +112,34 @@ func init() {
 	rootCmd.PersistentFlags().StringP("database", "d", "", "URL for RDS and database (default DDSL_DATABASE)")
 	viper.BindPFlag("database", rootCmd.PersistentFlags().Lookup("database"))
 
-	rootCmd.Flags().BoolVar(&version, "version", false, "show version number and exit")
-	rootCmd.Flags().StringVarP(&command, "command", "c", "", "DDSL command to run")
-	rootCmd.Flags().StringVarP(&file, "file", "f", "", "file containing DDSL commands")
-
-	rootCmd.PersistentFlags().BoolP("dry-run", "r", false, "make no changes, only show what would be done")
+	rootCmd.PersistentFlags().Bool("dry-run", false, "take no action but output what would be done")
 	viper.BindPFlag("dry_run", rootCmd.PersistentFlags().Lookup("dry-run"))
 
+	rootCmd.Flags().BoolVar(&version, "version", false, "show version number and exit")
+	rootCmd.Flags().StringVarP(&file, "file", "f", "", "file containing DDSL commands")
+
+}
+
+func addCreateOrDropSubCmds(createOrDropCmd *cobra.Command) {
+	createOrDropCmd.AddCommand(databaseCmd)
+	createOrDropCmd.AddCommand(rolesCmd)
+	createOrDropCmd.AddCommand(extensionsCmd)
+	createOrDropCmd.AddCommand(foreignKeysCmd)
+	createOrDropCmd.AddCommand(schemasCmd)
+	createOrDropCmd.AddCommand(typesCmd)
+	createOrDropCmd.AddCommand(schemaCmd)
+	createOrDropCmd.AddCommand(tablesCmd)
+	createOrDropCmd.AddCommand(viewsCmd)
+	createOrDropCmd.AddCommand(tableCmd)
+	createOrDropCmd.AddCommand(viewCmd)
+	createOrDropCmd.AddCommand(constraintsCmd)
+	createOrDropCmd.AddCommand(indexesCmd)
+}
+
+
+func addGrantOrRevokeSubCmds(grantOrRevokeCmd *cobra.Command) {
+	grantOrRevokeCmd.AddCommand(grantPrivilegesCmd)
+	grantOrRevokeCmd.AddCommand(grantPrivilegesOnCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
