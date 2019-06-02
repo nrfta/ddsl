@@ -15,20 +15,14 @@ type completerCache struct {
 var cache *completerCache
 
 
-func makeCompleterCache(repo, url string) {
+func initializeCache(ctx *exec.Context) {
 	cache = &completerCache{
-		repo:      repo,
-		url:       url,
-		context:   exec.NewContext(repo, url, true),
+		context:   ctx,
 	}
 }
 
-func initializeCache(repo, url string) {
-	makeCompleterCache(repo, url)
-}
-
 func invalidateCache() {
-	makeCompleterCache(cache.repo, cache.url)
+	initializeCache(cache.context)
 }
 
 func (c *completerCache) getDatabaseSchemas() ([]string, error) {

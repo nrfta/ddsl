@@ -1,31 +1,37 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/neighborly/ddsl/exec"
+	"github.com/neighborly/ddsl/parser"
 	"io/ioutil"
-	"strings"
 )
 
-func RunCommand(repo string, url string, command string) (exitCode int, err error) {
-	cmds := strings.Split(command, ";")
-	for _, cmd := range cmds {
-		fmt.Printf("[INFO] *** command: %s ***\n", cmd)
-		ctx := exec.NewContext(repo, url, true)
-		if err := exec.Execute(ctx, cmd); err != nil {
-			return 1, err
-		}
+func runCLICommand(command string) (exitCode int, err error) {
+	cmds, _, hasDB, err := parser.Parse(command)
+	if err != nil {
+		return 1, err
+	}
+	ctx := makeExecContext(!hasDB)
+	err = exec.ExecuteBatch(ctx, cmds)
+	if err != nil {
+		return 1, err
 	}
 	return 0, nil
 }
 
-func runFile(repo string, url string, file string) (exitCode int, err error) {
+func runFile(file string) (exitCode int, err error) {
 	commandBytes, err := ioutil.ReadFile(file)
 	if err != nil {
 		return 1, err
 	}
 
-	command = string(commandBytes)
+	command := string(commandBytes)
+	cmds, hasTx, hasDB, err := parser.Parse(command)
 
-	return RunCommand(repo, url, command)
+	ctx := makeExecContext(!hasTx && !hasDB)
+    err = exec.ExecuteBatch(ctx, cmds)
+    if err != nil {
+    	return 1, err
+	}
+	return 0, nil
 }

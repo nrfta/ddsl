@@ -1,7 +1,7 @@
 package exec
 
 import (
-	dbDriver "github.com/neighborly/ddsl/drivers/database"
+	dbdr "github.com/neighborly/ddsl/drivers/database"
 	"strings"
 )
 
@@ -9,18 +9,21 @@ type Context struct {
 	SourceRepo      string
 	DatbaseUrl      string
 	AutoTransaction bool
+	DryRun          bool
 	inTransaction   bool
+	dbDriver        dbdr.Driver
 }
 
 type Name struct {
 	Name *string
 }
 
-func NewContext(sourceRepo, databaseURL string, autoTx bool) *Context {
+func NewContext(sourceRepo, databaseURL string, autoTx, dryRun bool) *Context {
 	return &Context{
 		SourceRepo:      sourceRepo,
 		DatbaseUrl:      databaseURL,
 		AutoTransaction: autoTx,
+		DryRun:          dryRun,
 	}
 }
 
@@ -44,7 +47,7 @@ func (c *Context) GetDatabaseTypes() ([]string, error) {
 }
 
 func (c *Context) getNames(query string) ([]string, error) {
-	dbdr, err := dbDriver.Open(c.DatbaseUrl)
+	dbdr, err := c.dbDriver.Open(c.DatbaseUrl)
 	if err != nil {
 		return nil, err
 	}

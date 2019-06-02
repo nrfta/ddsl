@@ -132,12 +132,27 @@ var _ = Describe("ParseTree", func() {
 		It("parses positive tests", func() {
 			for _, s := range positiveTests {
 				fmt.Fprintln(GinkgoWriter, s.command)
-				cmd, err := Parse(s.command)
+				cmds, _, _, err := Parse(s.command)
+				cmd := cmds[0]
 				Expect(err).To(BeNil())
 				Expect(cmd.CommandDef.Name).To(Equal(s.expectedPrimary))
 				Expect(cmd.Args).To(ConsistOf(s.expectedArgs))
 				Expect(cmd.ExtArgs).To(ConsistOf(s.expectedExtendedArgs))
 			}
+		})
+	})
+
+	Describe("ShortDesc", func() {
+
+		It("returns short desc", func() {
+			desc := ShortDesc("create")
+			Expect(desc).To(Equal("Top level create command"))
+
+			desc = ShortDesc("drop")
+			Expect(desc).To(Equal("Top level drop command"))
+
+			desc = ShortDesc("sql")
+			Expect(desc).To(Equal("Run a SQL command or script"))
 		})
 	})
 

@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"fmt"
+	"github.com/neighborly/ddsl/log"
 	"github.com/neighborly/ddsl/parser"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -24,5 +25,9 @@ Examples:
 }
 
 func createOrDropViews(cmd *cobra.Command, args []string) {
-	fmt.Println("views called")
+	code, err := runCLICommand(constructCreateOrDropCommand(cmd, args))
+	if err != nil {
+		log.Error(err.Error())
+	}
+	os.Exit(code)
 }

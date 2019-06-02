@@ -4,21 +4,20 @@ import (
 	"errors"
 	"fmt"
 	"github.com/neighborly/ddsl/log"
-	"github.com/spf13/viper"
 	"path"
 	"strings"
 )
 
 var seedPatterns = map[string]string{
-	tables:      `schemas/%s/tables/.*\.seed\..*`,
-	table:       `schemas/%s/tables/%s\.seed\..*`,
+	TABLES: `schemas/%s/tables/.*\.seed\..*`,
+	TABLE:  `schemas/%s/tables/%s\.seed\..*`,
 }
 
 func (ex *executor) executeSeed() (int, error) {
 	switch ex.command.CommandDef.Name {
-	case table:
+	case TABLE:
 		return ex.executeSeedTable()
-	case tables:
+	case TABLES:
 		return ex.executeSeedTables()
 	}
 
@@ -45,7 +44,7 @@ func (ex *executor) executeSeedTables() (int, error) {
 		params := map[string]string {
 			"schemaName": schemaName,
 		}
-		c, err := ex.executeSeedKey(tables, params)
+		c, err := ex.executeSeedKey(TABLES, params)
 		count += c
 		if err != nil {
 			return count, err
@@ -67,7 +66,7 @@ func (ex *executor) executeSeedTable() (int, error) {
 			"schemaName": schemaName,
 			"tableName": tableName,
 		}
-		c, err := ex.executeSeedKey(table, params)
+		c, err := ex.executeSeedKey(TABLE, params)
 		count += c
 		if err != nil {
 			return count, err
@@ -101,8 +100,6 @@ func (ex *executor) executeSeedWork(pathPattern string, params map[string]string
 
 	count := 0
 
-	dryRun := viper.GetBool("dry_run")
-
 	for _, fr := range readers {
 		ext := path.Ext(fr.FilePath)
 		action := ""
@@ -112,29 +109,29 @@ func (ex *executor) executeSeedWork(pathPattern string, params map[string]string
 		case ".sql": // TODO ".sh", ".ddsl":
 			action = "seeding with SQL"
 		default:
-			return count, fmt.Errorf("[ERROR] unsupported file %s", fr.FilePath)
+			return count, fmt.Errorf("unsupported file %s", fr.FilePath)
 		}
 
 		count++
 
 		logLevel := log.LEVEL_INFO
-		if dryRun {
+		if ex.ctx.DryRun {
 			logLevel = log.LEVEL_DRY_RUN
 		}
-		log.Log(logLevel,"%s %s\n", action, fr.FilePath)
-		if dryRun {
+		log.Log(logLevel,"%s %s", action, fr.FilePath)
+		if ex.ctx.DryRun {
 			continue
 		}
 
 		switch ext {
 		case ".sql":
-			if err = ex.dbDriver.Exec(fr.Reader); err != nil {
+			if err = ex.ctx.dbDriver.Exec(fr.Reader); err != nil {
 				return count, err
 			}
 		case ".csv":
 			filename := path.Base(fr.FilePath)
 			tablename := strings.Split(filename, ".")[0]
-			if err = ex.dbDriver.ImportCSV(fr.FilePath, params["schemaName"], tablename,",", true); err != nil {
+			if err = ex.ctx.dbDriver.ImportCSV(fr.FilePath, params["schemaName"], tablename,",", true); err != nil {
 				return count, err
 			}
 		}

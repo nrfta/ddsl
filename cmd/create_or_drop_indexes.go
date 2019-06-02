@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"fmt"
+	"github.com/neighborly/ddsl/log"
 	"github.com/neighborly/ddsl/parser"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -17,6 +18,10 @@ Examples:
   create indexes on this_schema.this_table;
   drop indexes that_schema.that_view,other_schema.other_table;`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("indexes called")
+		code, err := runCLICommand(constructCreateOrDropCommand(cmd, args))
+		if err != nil {
+			log.Error(err.Error())
+		}
+		os.Exit(code)
 	},
 }

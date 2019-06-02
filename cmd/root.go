@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/exec"
 	"github.com/neighborly/ddsl/repl"
 	"os"
 
@@ -14,7 +15,6 @@ var appVersion string
 
 var (
 	version bool
-	command string
 	file string
 	schemas []string
 	tables []string
@@ -33,7 +33,7 @@ one-off or stored in a ddsl file. In addition, ddsl files may made directly
 executable.
 
 Run the REPL shell:
-	ddsl
+    ddsl
 
 Run ddsl commands from the command line:
     ddsl [OPTIONS] command
@@ -45,15 +45,13 @@ Make ddsl file executable with "chmod +x file.ddsl" and adding shebang.
 Requires environment variables to set options. The "ddsl" command is
 omitted from the beginning of each line.
     #!/usr/bin/env ddsl
-	begin transaction;
+    begin transaction;
     command; command;
-	command;
-	commit transaction;
+    command;
+    commit transaction;
     etc...`,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		db := viper.GetString("database")
-		src := viper.GetString("source")
 		exitCode := 0
 		switch {
 
@@ -61,26 +59,26 @@ omitted from the beginning of each line.
 			fmt.Println("ddsl version", appVersion)
 
 		case len(file) > 0:
-			ensureArgs(src, db)
-			ec, err := runFile(src, db, file)
+			ec, err := runFile(file)
 			if err != nil {
 				fmt.Println(err)
 			}
 			exitCode = ec
 
 		default:
-			ec, err := repl.Run(src, db)
+			ec, err := repl.Run(makeExecContext(false))
 			if err != nil {
 				fmt.Println(err)
 			}
 			exitCode = ec
 		}
-
 		os.Exit(exitCode)
 	},
 }
 
-func ensureArgs(src string, db string) {
+func makeExecContext(autoTx bool) *exec.Context {
+	db := viper.GetString("database")
+	src := viper.GetString("source")
 	if len(db) == 0 {
 		fmt.Println("no database URL provided")
 		os.Exit(1)
@@ -89,6 +87,7 @@ func ensureArgs(src string, db string) {
 		fmt.Println("no source repository provided")
 		os.Exit(1)
 	}
+	return exec.NewContext(src, db, autoTx, viper.GetBool("dry_run"))
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

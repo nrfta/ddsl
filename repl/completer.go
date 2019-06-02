@@ -16,51 +16,30 @@ type followingSuggestion struct {
 
 func completer(d prompt.Document) []prompt.Suggest {
 	command := d.TextBeforeCursor()
-	args := strings.Split(command, " ")
 
 	if len(command) == 0 {
 		return suggestFromCommandDefs(parser.ParseTree.CommandDefs)
 	}
 
-	if len(args) <= 2 {
-		cmd, err := parser.Parse(command)
-		if err != nil {
-			return []prompt.Suggest{}
-		}
-
-		return suggestFromCommandDefs(cmd.CommandDef.CommandDefs)
-	}
-
-	rootC, err := parser.Parse(args[0])
-	if err != nil {
+	cmd, remainder, _ := parser.TryParse(command)
+	if cmd == nil {
 		return []prompt.Suggest{}
 	}
-	rootCmd := rootC.CommandDef
 
-	cmd, err := parser.Parse(strings.Join(args[:2], " "))
-	if err != nil {
+	if cmd.CommandDef.Name != d.GetWordBeforeCursor() {
 		return []prompt.Suggest{}
 	}
-	cmdDef := cmd.CommandDef
 
-	i := 2
-	nextCmdDef := cmdDef
+	if len(remainder) == 0 && len(cmd.CommandDef.ArgDefs) == 0 {
+		return []prompt.Suggest{}
+	}
+
 	partial := ""
-	for i < len(args) {
-		w := args[i]
-		c, ok := nextCmdDef.CommandDefs[w]
-		i++
-		// unrecognized and not the last arg
-		if !ok && i < len(args) {
-			return []prompt.Suggest{}
-		}
-		if !ok && i == len(args) {
-			partial = w
-		}
-		nextCmdDef = c
+	if len(remainder) > 0 {
+		partial = remainder[len(remainder)-1]
 	}
 
-	followingCmds := getFollowingSuggestions(nextCmdDef, "")
+	followingCmds := getFollowingSuggestions(cmd.CommandDef, "")
 	suggestions = []prompt.Suggest{}
 	if len(followingCmds) > 0 {
 		for _, c := range followingCmds {
@@ -73,8 +52,8 @@ func completer(d prompt.Document) []prompt.Suggest {
 	}
 
 	//
-	if len(nextCmdDef.ArgDefs) > 0 {
-		suggestedArgs, err := suggestArgs(rootCmd, nextCmdDef)
+	if len(cmd.CommandDef.ArgDefs) > 0 {
+		suggestedArgs, err := suggestArgs(cmd.RootDef, cmd.CommandDef)
 		if err != nil {
 			return []prompt.Suggest{}
 		}

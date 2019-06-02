@@ -69,7 +69,10 @@ func Log(level LogLevel, s string, a ...interface{}) {
 		panic(fmt.Sprintf("invalid log level %d", level))
 	}
 	if level <= logLevel {
-		msg := fmt.Sprintf(s, a)
+		msg := s
+		if len(a) > 0 {
+			msg = fmt.Sprintf(msg, a...)
+		}
 		fmt.Printf("[%s] %s\n", levelMap[level], msg)
 	}
 }

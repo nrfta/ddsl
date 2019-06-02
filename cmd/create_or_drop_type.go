@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"fmt"
+	"github.com/neighborly/ddsl/log"
 	"github.com/neighborly/ddsl/parser"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -17,6 +18,10 @@ Examples:
   create type this_schema.this_type;
   drop types that_schema.that_type,other_schema.other_type;`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("type called")
+		code, err := runCLICommand(constructCreateOrDropCommand(cmd, args))
+		if err != nil {
+			log.Error(err.Error())
+		}
+		os.Exit(code)
 	},
 }

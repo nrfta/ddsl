@@ -1,6 +1,9 @@
 package repl
 
-import "github.com/c-bata/go-prompt"
+import (
+	"github.com/c-bata/go-prompt"
+	"github.com/neighborly/ddsl/exec"
+)
 
 var suggestions = []prompt.Suggest{
 	// Config
@@ -52,8 +55,8 @@ var suggestions = []prompt.Suggest{
 }
 
 
-func Run(repo string, url string) (exitCode int, err error) {
-	initializeCache(repo, url)
+func Run(ctx *exec.Context) (exitCode int, err error) {
+	initializeCache(ctx)
 	p := prompt.New(
 		executor,
 		completer,

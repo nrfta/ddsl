@@ -29,6 +29,6 @@ Note that SQL script is enclosed in backticks and can be multiple lines`,
 func init() {
 	rootCmd.AddCommand(sqlCmd)
 
-	sqlCmd.PersistentFlags().StringSliceVarP(&sqlFiles, "file","f", nil, "SQL file path, may be provided more than once")
+	sqlCmd.Flags().StringSliceVarP(&sqlFiles, "file","f", nil, "SQL file path, may be provided more than once")
 
 }

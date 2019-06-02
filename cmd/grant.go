@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/neighborly/ddsl/parser"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -23,7 +24,8 @@ var grantPrivilegesOnCmd = &cobra.Command{
 	Long: `
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("grant called")
+		fmt.Println("additional arguments required, use -h for help")
+		os.Exit(1)
 	},
 }
 

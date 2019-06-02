@@ -1,14 +1,19 @@
 package repl
 
 import (
-	"fmt"
 	"github.com/neighborly/ddsl/exec"
+	"github.com/neighborly/ddsl/log"
+	"github.com/neighborly/ddsl/parser"
 )
 
 func executor(command string) {
-	ctx := exec.NewContext(cache.repo, cache.url, false)
-	err := exec.Execute(ctx, command)
+	cmds, _,_,err := parser.Parse(command)
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err.Error())
+		return
+	}
+	err = exec.ExecuteBatch(cache.context, cmds)
+	if err != nil {
+		log.Error(err.Error())
 	}
 }

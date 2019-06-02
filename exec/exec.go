@@ -10,7 +10,6 @@ import (
 	"github.com/neighborly/ddsl/drivers/source/file"
 	"github.com/neighborly/ddsl/log"
 	"github.com/neighborly/ddsl/parser"
-	"github.com/spf13/viper"
 	"path"
 	"strings"
 )
@@ -23,7 +22,6 @@ func init() {
 type executor struct {
 	ctx          *Context
 	sourceDriver source.Driver
-	dbDriver     dbdr.Driver
 	databaseName string
 	command      *parser.Command
 	createOrDrop string
@@ -34,95 +32,160 @@ const (
 	drop   string = "drop"
 )
 
-func Execute(ctx *Context, command string) error {
-	cmd, err := parser.Parse(command)
-	if err != nil {
-		return err
-	}
-	cmdDef := cmd.CommandDef
-
+func ExecuteBatch(ctx *Context, cmds []*parser.Command) error {
 	dbDriver, err := dbdr.Open(ctx.DatbaseUrl)
 	if err != nil {
 		return err
 	}
 	defer dbDriver.Close()
 
+	ctx.dbDriver = dbDriver
+
+	if ctx.AutoTransaction {
+		log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "beginning transaction")
+		if !ctx.DryRun {
+			if err = ctx.dbDriver.Begin(); err != nil {
+				return err
+			}
+		}
+		ctx.inTransaction = true
+	}
+
 	count := 0
+
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		c, err := execute(ctx, cmd)
+		count += c
+		if err != nil {
+			if ctx.AutoTransaction && ctx.inTransaction {
+				log.Log(levelOrDryRun(ctx, log.LEVEL_WARN), "rolling back transaction")
+				if !ctx.DryRun {
+					ctx.dbDriver.Rollback()
+				}
+			}
+			return err
+		}
+	}
+
+	if ctx.AutoTransaction && ctx.inTransaction {
+		if count > 0 {
+			log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "committing transaction")
+			if !ctx.DryRun {
+				if err = dbDriver.Commit(); err != nil {
+					return err
+				}
+			}
+		} else {
+			log.Log(levelOrDryRun(ctx, log.LEVEL_WARN), "rolling back transaction; no commands executed")
+			if !ctx.DryRun {
+				if err = dbDriver.Rollback(); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	s := "s"
+	if count == 1 {
+		s = ""
+	}
+	log.Log(levelOrDryRun(ctx, log.LEVEL_INFO),"%d file%s processed", count, s)
+
+	return nil
+}
+
+func execute(ctx *Context, cmd *parser.Command) (int, error) {
+	log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "DDSL> %s", cmd.Text)
+
+	cmdDef := cmd.CommandDef
+
+	if cmdDef.Name == "begin" {
+		if ctx.AutoTransaction {
+			return 0, fmt.Errorf("cannot begin transaction in auto transaction context")
+		}
+		if ctx.inTransaction {
+			return 0, fmt.Errorf("already in transaction")
+		}
+		log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "beginning transaction")
+		if !ctx.DryRun {
+			err := ctx.dbDriver.Begin()
+			if err != nil {
+				return 0, err
+			}
+		}
+		ctx.inTransaction = true
+		return 0, nil
+	}
+
+
+	if cmdDef.Name == "commit" {
+		if ctx.AutoTransaction {
+			return 0, fmt.Errorf("cannot commit transaction in auto transaction context")
+		}
+		if !ctx.inTransaction {
+			return 0, fmt.Errorf("not in transaction")
+		}
+		log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "committing transaction")
+		if !ctx.DryRun {
+			err := ctx.dbDriver.Commit()
+			if err != nil {
+				return 0, err
+			}
+		}
+		return 0, nil
+	}
+
+	if cmdDef.Name == "rollback" {
+		if ctx.AutoTransaction {
+			return 0, fmt.Errorf("cannot rollback transaction in auto transaction context")
+		}
+		if !ctx.inTransaction {
+			return 0, fmt.Errorf("not in transaction")
+		}
+		log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "rolling back transaction")
+		if !ctx.DryRun {
+			err := ctx.dbDriver.Rollback()
+			if err != nil {
+				return 0, err
+			}
+		}
+		return 0, nil
+	}
+
+	count := 0
+	ex := &executor{
+		ctx:      ctx,
+		command:  cmd,
+	}
 
 	// database commands cannot run in transaction
 	isDatabaseCommand := cmdDef.Name == "database" && (cmdDef.Parent.Name == "create" || cmdDef.Parent.Name == "drop")
 	if isDatabaseCommand {
 		if ctx.inTransaction {
-			return fmt.Errorf("database commands cannot be run within a transaction")
-		}
-		ex := &executor{
-			ctx:      ctx,
-			dbDriver: dbDriver,
-			command:  cmd,
+			return count, fmt.Errorf("database commands cannot be run within a transaction")
 		}
 		c, err := ex.executeCmd()
 		count += c
 		if err != nil {
-			return err
+			return count, err
 		}
-		return nil
-	}
-
-	dryRun := viper.GetBool("dry_run")
-
-	logLevel := log.LEVEL_INFO
-	if dryRun {
-		logLevel = log.LEVEL_DRY_RUN
-	}
-
-	if ctx.AutoTransaction {
-		log.Log(logLevel, "beginning transaction")
-		if !dryRun {
-			err = dbDriver.Begin()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	ex := &executor{
-		ctx:      ctx,
-		dbDriver: dbDriver,
-		command:  cmd,
+		return count, nil
 	}
 
 	c, err := ex.executeCmd()
 	count += c
 	if err != nil {
-		logLevel := log.LEVEL_WARN
-		if dryRun {
-			logLevel = log.LEVEL_DRY_RUN
-		}
-		log.Log(logLevel, "rolling back transaction\n")
-		if !dryRun {
-			_ = dbDriver.Rollback()
-		}
-		return err
+		return count, err
 	}
 
-	if ctx.AutoTransaction {
-		log.Log(logLevel, "committing transaction")
-		if err = dbDriver.Commit(); err != nil {
-			return err
-		}
-	}
-
-	if count == 0 {
-		log.Warn("*** command did nothing; no files matched ***")
-	} else {
-		log.Info("*** %d files processed ***\n", count)
-	}
-
-	return nil
+	return count, nil
 }
 
 func (ex *executor) executeCmd() (int, error) {
-	topCmd := ex.command.CommandDef.ParentAtLevel(1)
+	topCmd := ex.command.RootDef
 	switch topCmd.Name {
 	case create:
 		ex.createOrDrop = create
@@ -133,17 +196,16 @@ func (ex *executor) executeCmd() (int, error) {
 	case "migrate":
 		return ex.executeMigrate()
 	case "sql":
-		dryRun := viper.GetBool("dry_run")
 		logLevel := log.LEVEL_INFO
-		if dryRun {
+		if ex.ctx.DryRun {
 			logLevel = log.LEVEL_DRY_RUN
 		}
-		log.Log(logLevel, "executing SQL statement\n")
-		if dryRun {
+		log.Log(logLevel, "executing SQL statement")
+		if ex.ctx.DryRun {
 			return 1, nil
 		}
 		sql := ex.command.Args[0]
-		return 1, ex.dbDriver.Exec(strings.NewReader(sql))
+		return 1, ex.ctx.dbDriver.Exec(strings.NewReader(sql))
 	}
 
 	return 0, errors.New("unknown command")
@@ -185,18 +247,16 @@ func (ex *executor) execute(pathPattern string) (int, error) {
 
 	fileCount := len(readers)
 
-	dryRun := viper.GetBool("dry_run")
-
 	for _, fr := range readers {
 		logLevel := log.LEVEL_INFO
-		if dryRun {
+		if ex.ctx.DryRun {
 			logLevel = log.LEVEL_DRY_RUN
 		}
-		log.Log(logLevel, "executing %s\n", fr.FilePath)
-		if dryRun {
+		log.Log(logLevel, "executing %s", fr.FilePath)
+		if ex.ctx.DryRun {
 			continue
 		}
-		err = ex.dbDriver.Exec(fr.Reader)
+		err = ex.ctx.dbDriver.Exec(fr.Reader)
 		if err != nil {
 			return fileCount, err
 		}
@@ -245,4 +305,11 @@ func getRelativePathAndFilePattern(path string) (relativePath string, filePatter
 	}
 
 	return p[:i], p[i+1:]
+}
+
+func levelOrDryRun(ctx *Context, level log.LogLevel) log.LogLevel {
+	if ctx.DryRun {
+		return log.LEVEL_DRY_RUN
+	}
+	return level
 }

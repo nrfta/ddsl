@@ -8,68 +8,68 @@ import (
 )
 
 const (
-	database    string = "database"
-	extensions  string = "extensions"
-	roles       string = "roles"
-	schemas     string = "schemas"
-	foreignKeys string = "foreign_keys"
-	schema      string = "schema"
-	tables      string = "tables"
-	views       string = "views"
-	table       string = "table"
-	view        string = "view"
-	indexes     string = "indexes"
-	constraints string = "constraints"
-	typeCmd     string = "type"
-	types       string = "types"
+	DATABASE     string = "database"
+	EXTENSIONS   string = "extensions"
+	ROLES        string = "roles"
+	SCHEMAS      string = "schemas"
+	FOREIGN_KEYS string = "foreign_keys"
+	SCHEMA       string = "schema"
+	TABLES       string = "tables"
+	VIEWS        string = "views"
+	TABLE        string = "table"
+	VIEW         string = "view"
+	INDEXES      string = "indexes"
+	CONSTRAINTS  string = "constraints"
+	TYPE         string = "type"
+	TYPES        string = "types"
 )
 
 var pathPatterns = map[string]string{
-	database:    `database\.%s\..*`,
-	extensions:  `extensions\.%s\..*`,
-	roles:       `roles\.%s\..*`,
-	schemas:     `scheams\.*`,
-	foreignKeys: `foreign_keys\.%s\..*`,
-	schema:      `schemas/%s/schema\.%s\..*`,
-	tables:      `schemas/%s/tables/.*\.%s\..*`,
-	views:       `schemas/%s/views/.*\.%s\..*`,
-	types:       `schemas/%s/types/.*\.%s\..*`,
-	table:       `schemas/%s/tables/%s\.%s\..*`,
-	view:        `schemas/%s/views/%s\.%s..*`,
-	indexes:     `schemas/%s/indexes/%s\.%s\..*`,
-	constraints: `schemas/%s/constraints/%s\.%s\..*`,
-	typeCmd:     `schemas/%s/types/%s\.%s\..*`,
+	DATABASE:     `database\.%s\..*`,
+	EXTENSIONS:   `extensions\.%s\..*`,
+	ROLES:        `roles\.%s\..*`,
+	SCHEMAS:      `scheams\.*`,
+	FOREIGN_KEYS: `foreign_keys\.%s\..*`,
+	SCHEMA:       `schemas/%s/schema\.%s\..*`,
+	TABLES:       `schemas/%s/tables/.*\.%s\..*`,
+	VIEWS:        `schemas/%s/views/.*\.%s\..*`,
+	TYPES:        `schemas/%s/types/.*\.%s\..*`,
+	TABLE:        `schemas/%s/tables/%s\.%s\..*`,
+	VIEW:         `schemas/%s/views/%s\.%s..*`,
+	INDEXES:      `schemas/%s/indexes/%s\.%s\..*`,
+	CONSTRAINTS:  `schemas/%s/constraints/%s\.%s\..*`,
+	TYPE:         `schemas/%s/types/%s\.%s\..*`,
 }
 
 func (ex *executor) executeCreateOrDrop() (int, error) {
 	switch ex.command.CommandDef.Name {
-	case database:
+	case DATABASE:
 		return ex.executeDatabase()
-	case schemas:
+	case SCHEMAS:
 		return ex.executeSchemas()
-	case extensions:
-		return ex.executeTopLevel(extensions)
-	case foreignKeys:
-		return ex.executeTopLevel(foreignKeys)
-	case roles:
-		return ex.executeTopLevel(roles)
-	case schema:
+	case EXTENSIONS:
+		return ex.executeTopLevel(EXTENSIONS)
+	case FOREIGN_KEYS:
+		return ex.executeTopLevel(FOREIGN_KEYS)
+	case ROLES:
+		return ex.executeTopLevel(ROLES)
+	case SCHEMA:
 		return ex.executeSchema()
-	case table:
-		return ex.executeSchemaItem(table)
-	case view:
-		return ex.executeSchemaItem(view)
-	case indexes:
+	case TABLE:
+		return ex.executeSchemaItem(TABLE)
+	case VIEW:
+		return ex.executeSchemaItem(VIEW)
+	case INDEXES:
 		return ex.executeIndexes()
-	case constraints:
+	case CONSTRAINTS:
 		return ex.executeConstraints()
-	case tables:
+	case TABLES:
 		return ex.executeTables()
-	case views:
+	case VIEWS:
 		return ex.executeViews()
-	case typeCmd:
-		return ex.executeSchemaItem(typeCmd)
-	case types:
+	case TYPE:
+		return ex.executeSchemaItem(TYPE)
+	case TYPES:
 		return ex.executeTypes()
 	}
 
@@ -82,9 +82,9 @@ func (ex *executor) executeTypes() (int, error) {
 	var err error
 	switch ex.command.Clause {
 	case "in":
-		schemaNames, err = ex.getSchemaNames(ex.command.Args, nil)
+		schemaNames, err = ex.getSchemaNames(ex.command.ExtArgs, nil)
 	case "except in":
-		schemaNames, err = ex.getSchemaNames(nil, ex.command.Args)
+		schemaNames, err = ex.getSchemaNames(nil, ex.command.ExtArgs)
 	default:
 		schemaNames, err = ex.getSchemaNames(nil, nil)
 	}
@@ -94,7 +94,7 @@ func (ex *executor) executeTypes() (int, error) {
 
 	count := 0
 	for _, schemaName := range schemaNames {
-		c, err := ex.executeCreateOrDropKey(types, schemaName)
+		c, err := ex.executeCreateOrDropKey(TYPES, schemaName)
 		count += c
 		if err != nil {
 			return count, err
@@ -110,9 +110,9 @@ func (ex *executor) executeViews() (int, error) {
 	var err error
 	switch ex.command.Clause {
 	case "in":
-		schemaNames, err = ex.getSchemaNames(ex.command.Args, nil)
+		schemaNames, err = ex.getSchemaNames(ex.command.ExtArgs, nil)
 	case "except in":
-		schemaNames, err = ex.getSchemaNames(nil, ex.command.Args)
+		schemaNames, err = ex.getSchemaNames(nil, ex.command.ExtArgs)
 	default:
 		schemaNames, err = ex.getSchemaNames(nil, nil)
 	}
@@ -122,7 +122,7 @@ func (ex *executor) executeViews() (int, error) {
 
 	count := 0
 	for _, schemaName := range schemaNames {
-		c, err := ex.executeCreateOrDropKey(views, schemaName)
+		c, err := ex.executeCreateOrDropKey(VIEWS, schemaName)
 		count += c
 		if err != nil {
 			return count, err
@@ -133,7 +133,7 @@ func (ex *executor) executeViews() (int, error) {
 		}
 
 		if c > 0 {
-			c, err := ex.createIndexesAndConstraints(views, schemaName)
+			c, err := ex.createIndexesAndConstraints(VIEWS, schemaName)
 			count += c
 			if err != nil {
 				return count, err
@@ -149,9 +149,9 @@ func (ex *executor) executeTables() (int, error) {
 	var err error
 	switch ex.command.Clause {
 	case "in":
-		schemaNames, err = ex.getSchemaNames(ex.command.Args, nil)
+		schemaNames, err = ex.getSchemaNames(ex.command.ExtArgs, nil)
 	case "except in":
-		schemaNames, err = ex.getSchemaNames(nil, ex.command.Args)
+		schemaNames, err = ex.getSchemaNames(nil, ex.command.ExtArgs)
 	default:
 		schemaNames, err = ex.getSchemaNames(nil, nil)
 	}
@@ -161,7 +161,7 @@ func (ex *executor) executeTables() (int, error) {
 
 	count := 0
 	for _, schemaName := range schemaNames {
-		c, err := ex.executeCreateOrDropKey(tables, schemaName)
+		c, err := ex.executeCreateOrDropKey(TABLES, schemaName)
 		count += c
 		if err != nil {
 			return count, err
@@ -172,7 +172,7 @@ func (ex *executor) executeTables() (int, error) {
 		}
 
 		if c > 0 {
-			c, err := ex.createIndexesAndConstraints(tables, schemaName)
+			c, err := ex.createIndexesAndConstraints(TABLES, schemaName)
 			count += c
 			if err != nil {
 				return count, err
@@ -200,7 +200,9 @@ func (ex *executor) createIndexesAndConstraints(itemType string, schemaName stri
 
 		c, err = ex.executeIndexesWork(schemaName, item)
 		count += c
-		return count, err
+		if err != nil {
+			return count, err
+		}
 	}
 
 	return count, nil
@@ -213,7 +215,7 @@ func (ex *executor) executeConstraints() (int, error) {
 		return count, fmt.Errorf("comma-delimited list of tables is required")
 	}
 
-	for _, n := range ex.command.Args {
+	for _, n := range ex.command.ExtArgs {
 		schemaName, tableName, err := parseSchemaItemName(n)
 		if err != nil {
 			return count, err
@@ -229,7 +231,7 @@ func (ex *executor) executeConstraints() (int, error) {
 	return count, nil
 }
 func (ex *executor) executeConstraintsWork(schemaName, tableName string) (int, error) {
-	return ex.executeCreateOrDropKey(constraints, schemaName, tableName)
+	return ex.executeCreateOrDropKey(CONSTRAINTS, schemaName, tableName)
 }
 
 func (ex *executor) executeIndexes() (int, error) {
@@ -239,7 +241,7 @@ func (ex *executor) executeIndexes() (int, error) {
 		return count, fmt.Errorf("comma-delimited list of tables or views is required")
 	}
 
-	for _, n := range ex.command.Args {
+	for _, n := range ex.command.ExtArgs {
 		schemaName, tableName, err := parseSchemaItemName(n)
 		if err != nil {
 			return count, err
@@ -255,17 +257,17 @@ func (ex *executor) executeIndexes() (int, error) {
 	return count, nil
 }
 func (ex *executor) executeIndexesWork(schemaName, tableOrViewName string) (int, error) {
-	return ex.executeCreateOrDropKey(indexes, schemaName, tableOrViewName)
+	return ex.executeCreateOrDropKey(INDEXES, schemaName, tableOrViewName)
 }
 
 func (ex *executor) executeSchemaItem(tableOrView string) (int, error) {
 	count := 0
 
-	if len(ex.command.Args) == 0 {
+	if len(ex.command.ExtArgs) == 0 {
 		return count, fmt.Errorf("comma-delimited list of %ss must be provided", tableOrView)
 	}
 
-	for _, n := range ex.command.Args {
+	for _, n := range ex.command.ExtArgs {
 		schemaName, tableOrViewName, err := parseSchemaItemName(n)
 		if err != nil {
 			return count, err
@@ -300,7 +302,7 @@ func (ex *executor) executeSchemaItem(tableOrView string) (int, error) {
 func (ex *executor) executeSchema() (int, error) {
 	count := 0
 
-	for _, schemaName := range ex.command.Args {
+	for _, schemaName := range ex.command.ExtArgs {
 		c, err := ex.executeSchemaWork(schemaName)
 		count += c
 		if err != nil {
@@ -312,7 +314,7 @@ func (ex *executor) executeSchema() (int, error) {
 }
 
 func (ex *executor) executeSchemaWork(schemaName string) (int, error) {
-	count, err := ex.executeCreateOrDropKey(schema, schemaName)
+	count, err := ex.executeCreateOrDropKey(SCHEMA, schemaName)
 	if err != nil {
 		return count, err
 	}
@@ -321,7 +323,7 @@ func (ex *executor) executeSchemaWork(schemaName string) (int, error) {
 }
 
 func (ex *executor) executeDatabase() (int, error) {
-	count, err := ex.executeTopLevel(database)
+	count, err := ex.executeTopLevel(DATABASE)
 	if err != nil {
 		return count, err
 	}
@@ -340,7 +342,7 @@ func (ex *executor) executeSchemas() (int, error) {
 	var err error
 	switch ex.command.Clause {
 	case "except":
-		schemaNames, err = ex.getSchemaNames(nil, ex.command.Args)
+		schemaNames, err = ex.getSchemaNames(nil, ex.command.ExtArgs)
 	default:
 		schemaNames, err = ex.getSchemaNames(nil, nil)
 	}
@@ -360,6 +362,7 @@ func (ex *executor) executeSchemas() (int, error) {
 }
 
 func (ex *executor) executeCreateOrDropKey(patternKey string, params ...interface{}) (int, error) {
+	params = append(params, ex.createOrDrop)
 	path := fmt.Sprintf(pathPatterns[patternKey], params...)
 	count, err := ex.execute(path)
 	if err != nil {
