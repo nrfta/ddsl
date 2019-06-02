@@ -41,6 +41,11 @@ func ExecuteBatch(ctx *Context, cmds []*parser.Command) error {
 
 	ctx.dbDriver = dbDriver
 
+	err = ensureAuditTable(ctx)
+	if err != nil {
+		return err
+	}
+
 	if ctx.AutoTransaction {
 		log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "beginning transaction")
 		if !ctx.DryRun {
@@ -186,29 +191,42 @@ func execute(ctx *Context, cmd *parser.Command) (int, error) {
 
 func (ex *executor) executeCmd() (int, error) {
 	topCmd := ex.command.RootDef
+	var err error
+	var count int
 	switch topCmd.Name {
 	case create:
 		ex.createOrDrop = create
-		return ex.executeCreateOrDrop()
+		count, err = ex.executeCreateOrDrop()
 	case drop:
 		ex.createOrDrop = drop
-		return ex.executeCreateOrDrop()
+		count, err = ex.executeCreateOrDrop()
+	case "seed":
+		count, err = ex.executeSeed()
 	case "migrate":
-		return ex.executeMigrate()
+		count, err = ex.executeMigrate()
 	case "sql":
-		logLevel := log.LEVEL_INFO
-		if ex.ctx.DryRun {
-			logLevel = log.LEVEL_DRY_RUN
-		}
-		log.Log(logLevel, "executing SQL statement")
+		log.Log(levelOrDryRun(ex.ctx, log.LEVEL_INFO), "executing SQL statement")
 		if ex.ctx.DryRun {
 			return 1, nil
 		}
 		sql := ex.command.Args[0]
-		return 1, ex.ctx.dbDriver.Exec(strings.NewReader(sql))
+		err = ex.ctx.dbDriver.Exec(strings.NewReader(sql))
+		count = 1
+	default:
+		return 0, errors.New("unknown command")
 	}
 
-	return 0, errors.New("unknown command")
+	if err != nil {
+		return count, err
+	}
+	if count > 0 {
+		err := ex.audit()
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
 }
 
 func (ex *executor) getSourceDriver(ref *string) error {
@@ -313,3 +331,4 @@ func levelOrDryRun(ctx *Context, level log.LogLevel) log.LogLevel {
 	}
 	return level
 }
+

@@ -26,6 +26,7 @@ var (
 	ErrNilConfig      = fmt.Errorf("no config")
 	ErrNoDatabaseName = fmt.Errorf("no database name")
 	ErrNoSchema       = fmt.Errorf("no schema")
+	ErrNoUser         = fmt.Errorf("no user")
 	ErrDatabaseDirty  = fmt.Errorf("database is dirty")
 )
 
@@ -33,6 +34,7 @@ type Config struct {
 	DatabaseName string
 	SchemaName   string
 	URL          string
+	User         string
 }
 
 type Postgres struct {
@@ -84,6 +86,18 @@ func WithInstance(instance *sql.DB, config *Config) (database.Driver, error) {
 	}
 
 	config.SchemaName = schemaName
+
+	query = `SELECT CURRENT_USER`
+	var user string
+	if err := instance.QueryRow(query).Scan(&user); err != nil {
+		return nil, &database.Error{OrigErr: err, Query: []byte(query)}
+	}
+
+	if len(user) == 0 {
+		return nil, ErrNoUser
+	}
+
+	config.User = user
 
 	conn, err := instance.Conn(context.Background())
 
@@ -170,6 +184,14 @@ func (p *Postgres) Unlock() error {
 	}
 	p.isLocked = false
 	return nil
+}
+
+func (p *Postgres) User() string {
+	return p.config.User
+}
+
+func (p *Postgres) DatabaseName() string {
+	return p.config.DatabaseName
 }
 
 func (p *Postgres) Begin() error {
