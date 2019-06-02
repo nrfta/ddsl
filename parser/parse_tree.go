@@ -255,8 +255,8 @@ func (c *Command) parseRemainder(tokens []string) (clause string, extArgs []stri
 
 	clauseSl := []string{}
 	cmdDef := c.CommandDef
-	for _, token := range tokens {
-		token = strings.ToLower(token)
+	for _, tokenOrig := range tokens {
+		token := strings.ToLower(tokenOrig)
 		next, ok := cmdDef.CommandDefs[token]
 		if ok {
 			clauseSl = append(clauseSl, token)
@@ -264,7 +264,7 @@ func (c *Command) parseRemainder(tokens []string) (clause string, extArgs []stri
 			if len(cmdDef.ArgDefs) > 0 {
 				// assume the rest is args
 				clause = strings.Join(clauseSl, " ")
-				extArgs = strings.Split(token,",")
+				extArgs = strings.Split(tokenOrig,",")
 				return
 			}
 			var skipped []string
