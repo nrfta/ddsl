@@ -26,11 +26,11 @@ const (
 
 var pathPatterns = map[string]string{
 	DATABASE:     `database\.%s\..*`,
-	EXTENSIONS:   `extensions\.%s\..*`,
 	ROLES:        `roles\.%s\..*`,
 	SCHEMAS:      `scheams\.*`,
 	FOREIGN_KEYS: `foreign_keys\.%s\..*`,
 	SCHEMA:       `schemas/%s/schema\.%s\..*`,
+	EXTENSIONS:   `schemas/%s/extensions\.%s\..*`,
 	TABLES:       `schemas/%s/tables/.*\.%s\..*`,
 	VIEWS:        `schemas/%s/views/.*\.%s\..*`,
 	TYPES:        `schemas/%s/types/.*\.%s\..*`,
