@@ -102,7 +102,12 @@ func ExecuteBatch(ctx *Context, cmds []*parser.Command) error {
 	if count == 1 {
 		s = ""
 	}
+	if count == 0 {
+		return fmt.Errorf("0 files processed; patterns tried:\n%s", ctx.getPatterns())
+
+	}
 	log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "%d file%s processed", count, s)
+	log.Debug("path patterns processed:\n%s", ctx.getPatterns())
 
 	return nil
 }
@@ -250,6 +255,8 @@ func (ex *executor) getSourceDriver(ref *string) error {
 }
 
 func (ex *executor) execute(pathPattern string) (int, error) {
+	ex.ctx.addPattern(pathPattern)
+
 	if err := ex.getSourceDriver(ex.command.Ref); err != nil {
 		return 0, err
 	}

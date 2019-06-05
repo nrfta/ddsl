@@ -159,6 +159,7 @@ func (ex *executor) executeSeedSchema() (int, error) {
 
 	for _, seedName := range seedNames {
 		params := map[string]string{
+			"schemaName": schemaName,
 			"seedName": seedName,
 		}
 		c, err := ex.executeSeedKey(SCHEMA, params)
@@ -317,7 +318,7 @@ func (ex *executor) getSeedNames(relativeDir string, with, without []string) ([]
 	seedNames := []string{}
 	for _, fr := range frs {
 		i := strings.LastIndex(path.Base(fr.FilePath), path.Ext(fr.FilePath))
-		seedName := fr.FilePath[:i]
+		seedName := path.Base(fr.FilePath)[:i]
 		if (len(with) > 0 && sliceutil.Contains(with, seedName)) ||
 			(len(without) > 0 && !sliceutil.Contains(without, seedName)) ||
 			(len(with) == 0 && len(without) == 0) {
