@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"github.com/neighborly/ddsl/log"
 	"github.com/neighborly/ddsl/parser"
-	"os"
-
 	"github.com/spf13/cobra"
 )
 
@@ -21,13 +18,6 @@ Examples:
   drop views in that_schema,other_schema;
   drop views except in that_schema;
   drop views except that_schema,other_schema;`,
-	Run: createOrDropViews,
+	Run: runCreateOrDropCommand,
 }
 
-func createOrDropViews(cmd *cobra.Command, args []string) {
-	code, err := runCLICommand(constructCreateOrDropCommand(cmd, args))
-	if err != nil {
-		log.Error(err.Error())
-	}
-	os.Exit(code)
-}

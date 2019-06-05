@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/log"
 	"github.com/neighborly/ddsl/parser"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -20,4 +22,18 @@ var seedCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(seedCmd)
+}
+
+
+func runSeedCommand(cmd *cobra.Command, args []string) {
+	command := "seed " + cmd.Use
+	if len(args) > 0 {
+		command += " "
+	}
+	command += strings.Join(args, " ")
+	code, err := runCLICommand(command)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	os.Exit(code)
 }

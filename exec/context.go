@@ -12,6 +12,7 @@ type Context struct {
 	DryRun          bool
 	inTransaction   bool
 	dbDriver        dbdr.Driver
+	patterns        []string
 }
 
 type Name struct {
@@ -24,6 +25,7 @@ func NewContext(sourceRepo, databaseURL string, autoTx, dryRun bool) *Context {
 		DatbaseUrl:      databaseURL,
 		AutoTransaction: autoTx,
 		DryRun:          dryRun,
+		patterns:        []string{},
 	}
 }
 
@@ -68,4 +70,15 @@ func (c *Context) getNames(query string) ([]string, error) {
 	}
 
 	return names, nil
+}
+
+func (c *Context) addPattern(pattern string) {
+	c.patterns = append(c.patterns, pattern)
+}
+
+func (c *Context) getPatterns() string {
+	if len(c.patterns) == 0 {
+		return "(none)"
+	}
+	return strings.Join(c.patterns, "\n")
 }

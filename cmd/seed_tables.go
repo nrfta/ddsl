@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/neighborly/ddsl/parser"
 	"github.com/spf13/cobra"
 )
@@ -24,11 +23,7 @@ Examples:
   seed tables;
   seed tables in this_schema;
   seed tables except in that_schema;`,
-	Run: seedTables,
-}
-
-func seedTables(cmd *cobra.Command, args []string) {
-	fmt.Println("seed tables called")
+	Run: runSeedCommand,
 }
 
 func init() {

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
@@ -18,9 +17,7 @@ var cmdCmd = &cobra.Command{
   seed cmd ` + "`shell script as text`;" + `
 
 Note that shell script is enclosed in backticks and can be multiple lines`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("cmd called")
-	},
+	Run: runSeedCommand,
 }
 
 func init() {

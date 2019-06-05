@@ -2,7 +2,6 @@ package parser
 
 import (
 	"bufio"
-	"github.com/mattn/go-shellwords"
 	"strings"
 )
 
@@ -150,10 +149,6 @@ func init() {
 }
 
 func initialize() {
-	shellParser = shellwords.NewParser()
-	shellParser.ParseEnv = true
-	shellParser.ParseBacktick = true
-
 	scanner := bufio.NewScanner(strings.NewReader(commandSpec))
 	levels := map[int]*CommandDef{}
 
