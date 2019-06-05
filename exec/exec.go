@@ -28,8 +28,13 @@ type executor struct {
 }
 
 const (
-	create string = "create"
-	drop   string = "drop"
+	CREATE  string = "create"
+	DROP    string = "drop"
+	MIGRATE string = "migrate"
+	SEED    string = "seed"
+	SQL     string = "sql"
+	GRANT   string = "grant"
+	REVOKE  string = "revoke"
 )
 
 func ExecuteBatch(ctx *Context, cmds []*parser.Command) error {
@@ -97,7 +102,7 @@ func ExecuteBatch(ctx *Context, cmds []*parser.Command) error {
 	if count == 1 {
 		s = ""
 	}
-	log.Log(levelOrDryRun(ctx, log.LEVEL_INFO),"%d file%s processed", count, s)
+	log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "%d file%s processed", count, s)
 
 	return nil
 }
@@ -124,7 +129,6 @@ func execute(ctx *Context, cmd *parser.Command) (int, error) {
 		ctx.inTransaction = true
 		return 0, nil
 	}
-
 
 	if cmdDef.Name == "commit" {
 		if ctx.AutoTransaction {
@@ -162,8 +166,8 @@ func execute(ctx *Context, cmd *parser.Command) (int, error) {
 
 	count := 0
 	ex := &executor{
-		ctx:      ctx,
-		command:  cmd,
+		ctx:     ctx,
+		command: cmd,
 	}
 
 	// database commands cannot run in transaction
@@ -194,24 +198,18 @@ func (ex *executor) executeCmd() (int, error) {
 	var err error
 	var count int
 	switch topCmd.Name {
-	case create:
-		ex.createOrDrop = create
+	case CREATE:
+		ex.createOrDrop = CREATE
 		count, err = ex.executeCreateOrDrop()
-	case drop:
-		ex.createOrDrop = drop
+	case DROP:
+		ex.createOrDrop = DROP
 		count, err = ex.executeCreateOrDrop()
-	case "seed":
+	case SEED:
 		count, err = ex.executeSeed()
-	case "migrate":
+	case MIGRATE:
 		count, err = ex.executeMigrate()
-	case "sql":
-		log.Log(levelOrDryRun(ex.ctx, log.LEVEL_INFO), "executing SQL statement")
-		if ex.ctx.DryRun {
-			return 1, nil
-		}
-		sql := ex.command.Args[0]
-		err = ex.ctx.dbDriver.Exec(strings.NewReader(sql))
-		count = 1
+	case SQL:
+		count, err = ex.executeSql()
 	default:
 		return 0, errors.New("unknown command")
 	}
@@ -283,6 +281,23 @@ func (ex *executor) execute(pathPattern string) (int, error) {
 	return fileCount, nil
 }
 
+func (ex *executor) executeSql() (int, error) {
+	if len(ex.command.ExtArgs) != 1 {
+		return 0, fmt.Errorf("the sql command requires one argument")
+	}
+
+	log.Log(levelOrDryRun(ex.ctx, log.LEVEL_INFO), "executing SQL statement")
+	if ex.ctx.DryRun {
+		return 1, nil
+	}
+	sql := ex.command.ExtArgs[0]
+	err := ex.ctx.dbDriver.Exec(strings.NewReader(sql))
+	if err != nil {
+		return 0, err
+	}
+	return 1, nil
+}
+
 func (ex *executor) getSchemaNames(in, except []string) ([]string, error) {
 	if err := ex.getSourceDriver(ex.command.Ref); err != nil {
 		return nil, err
@@ -331,4 +346,3 @@ func levelOrDryRun(ctx *Context, level log.LogLevel) log.LogLevel {
 	}
 	return level
 }
-

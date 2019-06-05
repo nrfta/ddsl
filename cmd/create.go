@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/neighborly/ddsl/log"
 	"github.com/neighborly/ddsl/parser"
 	"github.com/spf13/cobra"
 	"os"
@@ -41,7 +42,7 @@ func createOrDrop(cmd *cobra.Command) string {
 	return ""
 }
 
-func constructCreateOrDropCommand(cmd *cobra.Command, args []string) string {
+func runCreateOrDropCommand(cmd *cobra.Command, args []string) {
 	corD := createOrDrop(cmd)
 	if len(corD) == 0 {
 		panic("use only for create or drop")
@@ -51,5 +52,11 @@ func constructCreateOrDropCommand(cmd *cobra.Command, args []string) string {
 		command += " "
 	}
 	command += strings.Join(args, " ")
-	return command
+
+	code, err := runCLICommand(command)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	os.Exit(code)
 }
+

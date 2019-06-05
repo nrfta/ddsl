@@ -19,6 +19,12 @@ type Command struct {
 
 var shellParser *shellwords.Parser
 
+func init() {
+	shellParser = shellwords.NewParser()
+	shellParser.ParseEnv = true
+	shellParser.ParseBacktick = true
+}
+
 func Parse(text string) (cmds []*Command, hasTx bool, hasDB bool, err error) {
 	cmds = []*Command{}
 	scanner := bufio.NewScanner(strings.NewReader(text))

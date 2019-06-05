@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
@@ -18,9 +17,7 @@ Examples:
   seed sql ` + "`SQL script as text`;" + `
 
 Note that SQL script is enclosed in backticks and can be multiple lines`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("seedSql called")
-	},
+	Run: runSeedCommand,
 }
 
 func init() {

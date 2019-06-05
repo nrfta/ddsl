@@ -48,7 +48,7 @@ func (ex *executor) executeCreateOrDrop() (int, error) {
 	case SCHEMAS:
 		return ex.executeSchemas()
 	case EXTENSIONS:
-		return ex.executeTopLevel(EXTENSIONS)
+		return ex.executeExtensions()
 	case FOREIGN_KEYS:
 		return ex.executeTopLevel(FOREIGN_KEYS)
 	case ROLES:
@@ -128,7 +128,7 @@ func (ex *executor) executeViews() (int, error) {
 			return count, err
 		}
 
-		if ex.createOrDrop == drop {
+		if ex.createOrDrop == DROP {
 			continue
 		}
 
@@ -167,7 +167,7 @@ func (ex *executor) executeTables() (int, error) {
 			return count, err
 		}
 
-		if ex.createOrDrop == drop {
+		if ex.createOrDrop == DROP {
 			continue
 		}
 
@@ -279,7 +279,7 @@ func (ex *executor) executeSchemaItem(tableOrView string) (int, error) {
 			return count, err
 		}
 
-		if ex.createOrDrop == drop {
+		if ex.createOrDrop == DROP {
 			continue
 		}
 
@@ -296,6 +296,33 @@ func (ex *executor) executeSchemaItem(tableOrView string) (int, error) {
 			return count, err
 		}
 	}
+	return count, nil
+}
+
+func (ex *executor) executeExtensions() (int, error) {
+	var schemaNames []string
+	var err error
+	switch ex.command.Clause {
+	case "in":
+		schemaNames, err = ex.getSchemaNames(ex.command.ExtArgs, nil)
+	case "except in":
+		schemaNames, err = ex.getSchemaNames(nil, ex.command.ExtArgs)
+	default:
+		schemaNames, err = ex.getSchemaNames(nil, nil)
+	}
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, schemaName := range schemaNames {
+		c, err := ex.executeCreateOrDropKey(EXTENSIONS, schemaName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
+
 	return count, nil
 }
 
@@ -379,7 +406,7 @@ func (ex *executor) namesOf(itemType string, schemaName string) ([]string, error
 	}
 	defer ex.sourceDriver.Close()
 
-	relativePath, filePattern := getRelativePathAndFilePattern(fmt.Sprintf(pathPatterns[itemType], schemaName, create))
+	relativePath, filePattern := getRelativePathAndFilePattern(fmt.Sprintf(pathPatterns[itemType], schemaName, CREATE))
 	readers, err := ex.sourceDriver.ReadFiles(relativePath, filePattern)
 	if err != nil {
 		return nil, err

@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/neighborly/ddsl/parser"
-
 	"github.com/spf13/cobra"
 )
 
@@ -22,9 +20,7 @@ it is run as a shell script with "sh <seed_file>".
 Examples:
   seed table this_schema.this_table;
   seed table this_schema.this_table,that_schema.that_table;`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("seedTable called")
-	},
+	Run: runSeedCommand,
 }
 
 func init() {

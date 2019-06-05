@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
@@ -23,9 +22,7 @@ Examples:
   seed database;
   seed database with this_seed;
   seed database without that_seed;`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("seedDatabase called")
-	},
+	Run: runSeedCommand,
 }
 
 func init() {
