@@ -424,7 +424,7 @@ func (ex *executor) namesOf(itemType string, schemaName string) ([]string, error
 
 func parseSchemaItemName(item string) (schemaName string, tableOrViewName string, err error) {
 	if len(item) == 0 {
-		return "", "", fmt.Errorf("empty table or view name provided; check for trailing comma or space after a comma in list arg")
+		return "", "", fmt.Errorf("empty table or view name provided; check for trailing comma or space after comma in list arg")
 	}
 	nparts := strings.Split(item, ".")
 	if len(nparts) != 2 {

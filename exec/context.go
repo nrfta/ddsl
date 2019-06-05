@@ -78,7 +78,7 @@ func (c *Context) addPattern(pattern string) {
 
 func (c *Context) getPatterns() string {
 	if len(c.patterns) == 0 {
-		return "none"
+		return "(none)"
 	}
 	return strings.Join(c.patterns, "\n")
 }
