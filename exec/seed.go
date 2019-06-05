@@ -44,6 +44,8 @@ func (ex *executor) executeSeed() (int, error) {
 		return ex.executeSeedDatabase()
 	case SQL:
 		return ex.executeSql()
+	case SCHEMA:
+		return ex.executeSeedSchema()
 	case CMD:
 		return ex.seedFromShellCommand()
 	}
