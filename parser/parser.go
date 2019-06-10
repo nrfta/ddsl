@@ -118,7 +118,7 @@ func TryParse(command string) (cmd *Command, remainder []string, err error) {
 				for a := 0; a < len(next.ArgDefs); a++ {
 					if tokenIndex+1 < len(tokens) {
 						tokenIndex++
-						args = append(args, tokens[tokenIndex])
+						args = append(args, strings.Split(tokens[tokenIndex],",")...)
 					} else {
 						break
 					}

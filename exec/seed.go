@@ -14,16 +14,21 @@ import (
 )
 
 const (
-	DatabaseRelativeDir = "seeds"
-	SchemaRelativeDir   = "schemas/%s/seeds"
+	DatabaseRelativeDir = "seeds/.*"
+	SchemaRelativeDir   = "schemas/%s/seeds/.*"
+	TableRelativeDir    = `schemas/%s/tables/%s\..*`
 	CMD                 = "cmd"
+	DATABASE_SEED       = "database_seed"
+	SCHEMA_SEED         = "schema_seed"
 )
 
 var seedPatterns = map[string]string{
-	TABLES:   `schemas/%s/tables/.*\.seed\..*`,
-	TABLE:    `schemas/%s/tables/%s\.seed\..*`,
-	DATABASE: `seeds/%s\..*`,
-	SCHEMA:   `schemas/%s/seeds/%s\..*`,
+	TABLES:        `schemas/%s/tables/.*\.seed\..*`,
+	TABLE:         `schemas/%s/tables/%s\.seed\..*`,
+	DATABASE:      `seeds/%s.*`,
+	DATABASE_SEED: `seeds/database\.seed\..*`,
+	SCHEMA:        `schemas/%s/seeds/%s\..*`,
+	SCHEMA_SEED:   `schemas/%s/seeds/schema\.seed\..*`,
 }
 
 var shellParser *shellwords.Parser
@@ -105,6 +110,51 @@ func (ex *executor) executeSeedTable() (int, error) {
 	return count, nil
 }
 
+/*
+func (ex *executor) executeSeedTable() (int, error) {
+	if len(ex.command.Args) == 0 {
+		return 0, fmt.Errorf("table name must be specified")
+	}
+
+	count := 0
+
+	for _, n := range ex.command.Args {
+		schemaName, tableName, err := parseSchemaItemName(n)
+		if err != nil {
+			return count, err
+		}
+		relativeDir := fmt.Sprintf(TableRelativeDir, schemaName, tableName)
+
+		var seedNames []string
+		switch ex.command.Clause {
+		case "with":
+			seedNames, err = ex.getSeedNames(relativeDir, ex.command.ExtArgs, nil)
+		case "without":
+			seedNames, err = ex.getSeedNames(relativeDir, nil, ex.command.ExtArgs)
+		default:
+			return ex.executeSeedKey(SCHEMA_SEED, map[string]string{"schemaName": schemaName})
+		}
+		if err != nil {
+			return count, err
+		}
+
+		for _, seedName := range seedNames {
+			params := map[string]string{
+				"schemaName": schemaName,
+				"seedName":   seedName,
+			}
+			c, err := ex.executeSeedKey(SCHEMA, params)
+			count += c
+			if err != nil {
+				return count, err
+			}
+		}
+	}
+	return count, nil
+
+}
+*/
+
 func (ex *executor) executeSeedDatabase() (int, error) {
 	count := 0
 	var seedNames []string
@@ -115,7 +165,7 @@ func (ex *executor) executeSeedDatabase() (int, error) {
 	case "without":
 		seedNames, err = ex.getSeedNames(DatabaseRelativeDir, nil, ex.command.ExtArgs)
 	default:
-		seedNames, err = ex.getSeedNames(DatabaseRelativeDir, nil, nil)
+		return ex.executeSeedKey(DATABASE_SEED, map[string]string{})
 	}
 	if err != nil {
 		return count, err
@@ -143,6 +193,7 @@ func (ex *executor) executeSeedSchema() (int, error) {
 	schemaName := ex.command.Args[0]
 	relativeDir := fmt.Sprintf(SchemaRelativeDir, schemaName)
 	count := 0
+
 	var seedNames []string
 	var err error
 	switch ex.command.Clause {
@@ -151,7 +202,7 @@ func (ex *executor) executeSeedSchema() (int, error) {
 	case "without":
 		seedNames, err = ex.getSeedNames(relativeDir, nil, ex.command.ExtArgs)
 	default:
-		seedNames, err = ex.getSeedNames(relativeDir, nil, nil)
+		return ex.executeSeedKey(SCHEMA_SEED, map[string]string{"schemaName":schemaName})
 	}
 	if err != nil {
 		return count, err
@@ -160,7 +211,7 @@ func (ex *executor) executeSeedSchema() (int, error) {
 	for _, seedName := range seedNames {
 		params := map[string]string{
 			"schemaName": schemaName,
-			"seedName": seedName,
+			"seedName":   seedName,
 		}
 		c, err := ex.executeSeedKey(SCHEMA, params)
 		count += c
@@ -174,6 +225,7 @@ func (ex *executor) executeSeedSchema() (int, error) {
 }
 
 func (ex *executor) executeSeedKey(patternKey string, params map[string]string) (int, error) {
+	// TODO: map sequence is not deterministic
 	fparams := []interface{}{}
 	for _, p := range params {
 		fparams = append(fparams, p)
@@ -198,7 +250,7 @@ func (ex *executor) executeSeedKey(patternKey string, params map[string]string) 
 		action := ""
 		switch ext {
 		case ".csv":
-			if patternKey != TABLE && patternKey != TABLES {
+			if patternKey != TABLE && patternKey != TABLES && patternKey != SCHEMA {
 				return count, fmt.Errorf("only tables can be seeded with CSV: %s", fr.FilePath)
 			}
 			action = "seeding with CSV"
@@ -222,7 +274,14 @@ func (ex *executor) executeSeedKey(patternKey string, params map[string]string) 
 			}
 		case ".csv":
 			filename := path.Base(fr.FilePath)
-			tablename := strings.Split(filename, ".")[0]
+			var tablename string
+			if patternKey == SCHEMA {
+				// zeroth element is the seed name, 1st element is the tablename
+				tablename = strings.Split(filename, ".")[1]
+			} else {
+				// table patterns: zeroth element is table name
+				tablename = strings.Split(filename, ".")[0]
+			}
 			if err = ex.ctx.dbDriver.ImportCSV(fr.FilePath, params["schemaName"], tablename, ",", true); err != nil {
 				return count, err
 			}
@@ -297,13 +356,16 @@ func getOutAndErr(out, e []uint8) string {
 	return s
 }
 
-func (ex *executor) getSeedNames(relativeDir string, with, without []string) ([]string, error) {
+func (ex *executor) getSeedNames(relativeFilePathPattern string, with, without []string) ([]string, error) {
 	if err := ex.getSourceDriver(ex.command.Ref); err != nil {
 		return nil, err
 	}
 	defer ex.sourceDriver.Close()
 
-	frs, err := ex.sourceDriver.ReadFiles(relativeDir, ".*")
+	relativeDir := path.Dir(relativeFilePathPattern)
+	filePattern := path.Base(relativeFilePathPattern)
+
+	frs, err := ex.sourceDriver.ReadFiles(relativeDir, filePattern)
 	if err != nil {
 		return nil, err
 	}
@@ -317,8 +379,11 @@ func (ex *executor) getSeedNames(relativeDir string, with, without []string) ([]
 
 	seedNames := []string{}
 	for _, fr := range frs {
-		i := strings.LastIndex(path.Base(fr.FilePath), path.Ext(fr.FilePath))
+		i := strings.Index(path.Base(fr.FilePath), ".")
 		seedName := path.Base(fr.FilePath)[:i]
+		if sliceutil.Contains(seedNames, seedName) {
+			continue
+		}
 		if (len(with) > 0 && sliceutil.Contains(with, seedName)) ||
 			(len(without) > 0 && !sliceutil.Contains(without, seedName)) ||
 			(len(with) == 0 && len(without) == 0) {

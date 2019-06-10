@@ -9,21 +9,6 @@ type tree struct {
 	CommandDefs map[string]*CommandDef
 }
 
-type Arg struct {
-	Name      string
-	ShortDesc string
-}
-
-type CommandDef struct {
-	Name        string
-	ShortDesc   string
-	Props       map[string]string
-	Level       int
-	Parent      *CommandDef
-	CommandDefs map[string]*CommandDef
-	ArgDefs     map[string]*Arg
-}
-
 var ParseTree *tree
 
 var commandSpec = `ddsl,Top level command,primary
@@ -84,20 +69,22 @@ var commandSpec = `ddsl,Top level command,primary
       -command,Shell command to run
     database,Seed the database,primary
       with,Seed the database,optional
-        -database_seeds,Comma-delimited list of seeds
+        -database_seeds,Comma-delimited list of named seeds
       without,Seed the database,optional
-        -database_seeds,Comma-delimited list of seeds
+        -database_seeds,Comma-delimited list of named seeds
     schemas,Seed all schemas,primary
       except,Comma-delimited list of schemas to exclude,optional
         -exclude_schemas,Comma-delimited list of schemas
     schema,Seed a schema,primary,ext-args
       -single_schema,Single schema name
       with,Seed a schema,optional
-        -schema_seeds,Comma-delimited list of seeds
+        -schema_seeds,Comma-delimited list of named seeds
       without,Seed a schema,optional
-        -schema_seeds,Comma-delimited list of seeds
-    table,Seed one or more tables,primary
+        -schema_seeds,Comma-delimited list of named seeds
+    table,Seed one or more tables,primary,ext-args
       -include_tables,Comma-delimited list of tables
+      with,Comma-delimited list of seeds,optional
+        -table_seeds,Comma-delimited list of named seeds
     tables,Seed all tables in given schemas,primary
       in,Comma delimited list of schemas,optional
         -include_schemas,Comma-delimited list of schemas
@@ -204,7 +191,7 @@ func procCommand(line string, parentCmd *CommandDef) *CommandDef {
 		Level:       level,
 		Parent:      parentCmd,
 		CommandDefs: map[string]*CommandDef{},
-		ArgDefs:     map[string]*Arg{},
+		ArgDefs:     map[string]*ArgDef{},
 	}
 
 	for i := 2; i < len(items); i++ {
@@ -220,10 +207,10 @@ func procCommand(line string, parentCmd *CommandDef) *CommandDef {
 	return cmdDef
 }
 
-func procArg(line string) *Arg {
+func procArg(line string) *ArgDef {
 	items := strings.Split(line, ",")
 
-	return &Arg{
+	return &ArgDef{
 		Name:      items[0],
 		ShortDesc: items[1],
 	}
@@ -247,13 +234,13 @@ func (c *CommandDef) clone(parent *CommandDef) *CommandDef {
 		Level:       c.Level,
 		Parent:      parent,
 		CommandDefs: map[string]*CommandDef{},
-		ArgDefs:     map[string]*Arg{},
+		ArgDefs:     map[string]*ArgDef{},
 	}
 	for _, cd := range c.CommandDefs {
 		cl.CommandDefs[cd.Name] = cd.clone(cl)
 	}
 	for _, ad := range c.ArgDefs {
-		cl.ArgDefs[ad.Name] = &Arg{
+		cl.ArgDefs[ad.Name] = &ArgDef{
 			Name:      ad.Name,
 			ShortDesc: ad.ShortDesc,
 		}
@@ -262,49 +249,4 @@ func (c *CommandDef) clone(parent *CommandDef) *CommandDef {
 		cl.Props[name] = value
 	}
 	return cl
-}
-
-func (c *CommandDef) ParentAtLevel(level int) *CommandDef {
-	if c.Level == level {
-		return c
-	}
-
-	if c.Level > level {
-		p := c
-		for p.Level > level {
-			p = p.Parent
-		}
-
-		return p
-	}
-
-	panic("level must be lower than current command")
-}
-
-func (c *CommandDef) IsOptional() bool {
-	return c.hasProp("optional")
-}
-func (c *CommandDef) IsRoot() bool {
-	return c.hasProp("root")
-}
-func (c *CommandDef) IsNonExec() bool {
-	return c.hasProp("non-exec")
-}
-func (c *CommandDef) IsPrimary() bool {
-	return c.hasProp("primary")
-}
-func (c *CommandDef) HasExtArgs() bool {
-	return c.hasProp("ext-args")
-}
-
-func (c *CommandDef) hasProp(name string) bool {
-	_, ok := c.Props[name]
-	return ok
-}
-
-func (c *CommandDef) getRoot() *CommandDef {
-	if c.IsRoot() {
-		return c
-	}
-	return c.Parent.getRoot()
 }

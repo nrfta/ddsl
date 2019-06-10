@@ -21,6 +21,7 @@ type negTestSpec struct {
 }
 
 var positiveTests = []posTestSpec{
+	posTestSpec{"seed table foo_schema.foo_table with foo_seed,bar_seed", "seed","table", "with",[]string{"foo_schema.foo_table"},[]string{"foo_seed","bar_seed"}},
 	posTestSpec{"create database","create", "database", "", []string{}, []string{}},
 	posTestSpec{"create DATABASE","create", "database", "", []string{}, []string{}},
 	posTestSpec{"CREATE DATABASE","create", "database", "", []string{}, []string{}},
@@ -83,8 +84,9 @@ var positiveTests = []posTestSpec{
 	posTestSpec{"seed schema foo_schema with foo_seed,bar_seed", "seed","schema", "with",[]string{"foo_schema"}, []string{"foo_seed","bar_seed"}},
 	posTestSpec{"seed schema foo_schema without foo_seed", "seed","schema", "without",[]string{"foo_schema"}, []string{"foo_seed"}},
 	posTestSpec{"seed schema foo_schema without foo_seed,bar_seed", "seed","schema", "without",[]string{"foo_schema"}, []string{"foo_seed","bar_seed"}},
-	posTestSpec{"seed table foo_schema.foo_table", "seed","table", "",[]string{},[]string{"foo_schema.foo_table"}},
-	posTestSpec{"seed table foo_schema.foo_table,bar_schema.bar_table", "seed","table", "",[]string{},[]string{"foo_schema.foo_table","bar_schema.bar_table"}},
+	posTestSpec{"seed table foo_schema.foo_table", "seed","table", "",[]string{"foo_schema.foo_table"}, []string{}},
+	posTestSpec{"seed table foo_schema.foo_table,bar_schema.bar_table", "seed","table", "",[]string{"foo_schema.foo_table","bar_schema.bar_table"}, []string{}},
+	posTestSpec{"seed table foo_schema.foo_table with foo_seed,bar_seed", "seed","table", "with",[]string{"foo_schema.foo_table"},[]string{"foo_seed","bar_seed"}},
 	posTestSpec{"seed tables", "seed","tables", "",[]string{}, []string{}},
 	posTestSpec{"seed tables in foo_schema", "seed","tables", "in",[]string{},[]string{"foo_schema"}},
 	posTestSpec{"seed tables in foo_schema,bar_schema", "seed","tables", "in",[]string{},[]string{"foo_schema","bar_schema"}},
