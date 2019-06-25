@@ -144,31 +144,41 @@ The following structure is required.
         📄 schema.drop.<ext>
         📄 schema.grant.<ext>
         📄 schema.revoke.<ext>
-        📂 constraints
-          📄 <table_or_view_name>.create.<ext>
-          📄 <table_or_view_name>.drop.<ext>
-        📂 indexes
-          📄 <table_or_view_name>.create.<ext>
-          📄 <table_or_view_name>.drop.<ext>
-        📂 seeds
-          📄 <seed_name>.ddsl
-          📄 <seed_name>.sql
-          📄 <seed_name>.sh
         📂 tables
-          📄 <table_name>.create.<ext>
-          📄 <table_name>.drop.<ext>
-          📄 <table_name>.grant.<ext>
-          📄 <table_name>.revoke.<ext>
-          📄 <table_name>.seed.sql # or .csv or .sh
+          📂 <table_name>
+            📄 table.create.sql
+            📄 table.drop.sql
+            📄 indexes.create.sql
+            📄 indexes.drop.sql
+            📄 constraints.create.sql
+            📄 constraints.drop.sql
+            📄 privileges.grant.sql
+            📄 privileges.revoke.sql
+            📂 seeds
+              📄 table.csv
+              📄 <seed_name>.sql
+              📄 <seed_name>.csv
+              📄 <seed_name>.sh
+        📂 views
+          📂 <view_name>
+            📄 view.create.sql
+            📄 view.drop.sql
+            📄 indexes.create.sql
+            📄 indexes.drop.sql
+            📄 constraints.create.sql
+            📄 constraints.drop.sql
+            📄 privileges.grant.sql
+            📄 privileges.revoke.sql
         📂 types
           📄 <type_name>.create.<ext>
           📄 <type_name>.drop.<ext>
-        📂 views
-          📄 <view_name>.create.<ext>
-          📄 <view_name>.drop.<ext>
-          📄 <table_name>.grant.<ext>
-          📄 <table_name>.revoke.<ext>
+        📂 seeds
+          📄 schema.ddsl
+          📄 <seed_name>.ddsl
+          📄 <seed_name>.sql
+          📄 <seed_name>.sh
     📂 seeds
+      📄 database.ddsl
       📄 <seed_name>.ddsl
       📄 <seed_name>.sql
       📄 <seed_name>.sh
