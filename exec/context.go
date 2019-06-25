@@ -13,6 +13,7 @@ type Context struct {
 	inTransaction   bool
 	dbDriver        dbdr.Driver
 	patterns        []string
+	nesting         int
 }
 
 type Name struct {
@@ -26,6 +27,7 @@ func NewContext(sourceRepo, databaseURL string, autoTx, dryRun bool) *Context {
 		AutoTransaction: autoTx,
 		DryRun:          dryRun,
 		patterns:        []string{},
+		nesting:         0,
 	}
 }
 
@@ -81,4 +83,27 @@ func (c *Context) getPatterns() string {
 		return "(none)"
 	}
 	return strings.Join(c.patterns, "\n")
+}
+
+func (c *Context) clearPatterns() {
+	c.patterns = []string{}
+}
+
+func (c *Context) pushNesting() {
+	c.nesting++
+}
+
+func (c *Context) popNesting() {
+	if c.nesting == 0 {
+		panic("level is already at 0")
+	}
+	c.nesting--
+}
+
+func (c *Context) getNestingForLogging() string {
+	s := ""
+	for l := 0; l < c.nesting; l++ {
+		s += "+"
+	}
+	return s
 }

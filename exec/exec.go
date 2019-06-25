@@ -61,59 +61,64 @@ func ExecuteBatch(ctx *Context, cmds []*parser.Command) error {
 		ctx.inTransaction = true
 	}
 
-	count := 0
-
-	for _, cmd := range cmds {
-		if cmd == nil {
-			continue
-		}
-		c, err := execute(ctx, cmd)
-		count += c
-		if err != nil {
-			if ctx.AutoTransaction && ctx.inTransaction {
-				log.Log(levelOrDryRun(ctx, log.LEVEL_WARN), "rolling back transaction")
-				if !ctx.DryRun {
-					ctx.dbDriver.Rollback()
-				}
+	_, err = executeBatch(ctx, cmds)
+	if err != nil {
+		if ctx.AutoTransaction && ctx.inTransaction {
+			log.Log(levelOrDryRun(ctx, log.LEVEL_WARN), "rolling back transaction")
+			if !ctx.DryRun {
+				ctx.dbDriver.Rollback()
 			}
-			return err
 		}
+		return err
 	}
 
 	if ctx.AutoTransaction && ctx.inTransaction {
-		if count > 0 {
-			log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "committing transaction")
-			if !ctx.DryRun {
-				if err = dbDriver.Commit(); err != nil {
-					return err
-				}
-			}
-		} else {
-			log.Log(levelOrDryRun(ctx, log.LEVEL_WARN), "rolling back transaction; no commands executed")
-			if !ctx.DryRun {
-				if err = dbDriver.Rollback(); err != nil {
-					return err
-				}
+		log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "committing transaction")
+		if !ctx.DryRun {
+			if err = dbDriver.Commit(); err != nil {
+				return err
 			}
 		}
 	}
-
-	s := "s"
-	if count == 1 {
-		s = ""
-	}
-	if count == 0 {
-		return fmt.Errorf("0 files processed; patterns tried:\n%s", ctx.getPatterns())
-
-	}
-	log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "%d file%s processed", count, s)
-	log.Debug("path patterns processed:\n%s", ctx.getPatterns())
 
 	return nil
 }
 
-func execute(ctx *Context, cmd *parser.Command) (int, error) {
-	log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "DDSL> %s", cmd.Text)
+func executeBatch(ctx *Context, cmds []*parser.Command) (int, error) {
+	count := 0
+
+	for _, cmd := range cmds {
+		// blank lines and comments
+		if cmd == nil {
+			continue
+		}
+
+		ctx.clearPatterns()
+
+		c, err := executeCmd(ctx, cmd)
+		if err != nil {
+			return count, err
+		}
+
+		s := "s"
+		if c == 1 {
+			s = ""
+		}
+		if c == 0 {
+			return 0, fmt.Errorf("no matching files found; patterns tried:\n%s", ctx.getPatterns())
+		}
+
+		log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "%d file%s processed", c, s)
+		log.Debug("path patterns processed:\n%s", ctx.getPatterns())
+
+		count += c
+	}
+
+	return count, nil
+}
+
+func executeCmd(ctx *Context, cmd *parser.Command) (int, error) {
+	log.Log(levelOrDryRun(ctx, log.LEVEL_INFO), "%sDDSL> %s", ctx.getNestingForLogging(), cmd.Text)
 
 	cmdDef := cmd.CommandDef
 
@@ -174,6 +179,11 @@ func execute(ctx *Context, cmd *parser.Command) (int, error) {
 		ctx:     ctx,
 		command: cmd,
 	}
+	defer func() {
+		if ex.sourceDriver != nil {
+			ex.sourceDriver.Close()
+		}
+	}()
 
 	// database commands cannot run in transaction
 	isDatabaseCommand := cmdDef.Name == "database" && (cmdDef.Parent.Name == "create" || cmdDef.Parent.Name == "drop")
@@ -232,7 +242,11 @@ func (ex *executor) executeCmd() (int, error) {
 	return count, nil
 }
 
-func (ex *executor) getSourceDriver(ref *string) error {
+func (ex *executor) ensureSourceDriverOpen() error {
+	if ex.sourceDriver != nil {
+		return nil
+	}
+
 	url := strings.TrimRight(ex.ctx.SourceRepo, "/")
 
 	i := strings.LastIndex(url, "/")
@@ -241,6 +255,7 @@ func (ex *executor) getSourceDriver(ref *string) error {
 	}
 	ex.databaseName = url[i+1:]
 
+	ref := ex.command.Ref
 	if ref != nil {
 		url += "#" + *ref
 	}
@@ -255,37 +270,43 @@ func (ex *executor) getSourceDriver(ref *string) error {
 }
 
 func (ex *executor) execute(pathPattern string) (int, error) {
-	ex.ctx.addPattern(pathPattern)
-
-	if err := ex.getSourceDriver(ex.command.Ref); err != nil {
+	if err := ex.ensureSourceDriverOpen(); err != nil {
 		return 0, err
 	}
-	defer ex.sourceDriver.Close()
 
-	relativePath, filePattern := getRelativePathAndFilePattern(pathPattern)
-	readers, err := ex.sourceDriver.ReadFiles(relativePath, filePattern)
+	relativePath, filePattern := path.Split(pathPattern)
+	dirs, err := ex.resolveDirectoryWildcards(relativePath)
 	if err != nil {
 		return 0, err
 	}
 
-	fileCount := len(readers)
+	count := 0
+	for _, d := range dirs {
+		ex.ctx.addPattern(path.Join(d, filePattern))
 
-	for _, fr := range readers {
-		logLevel := log.LEVEL_INFO
-		if ex.ctx.DryRun {
-			logLevel = log.LEVEL_DRY_RUN
-		}
-		log.Log(logLevel, "executing %s", fr.FilePath)
-		if ex.ctx.DryRun {
-			continue
-		}
-		err = ex.ctx.dbDriver.Exec(fr.Reader)
+		readers, err := ex.sourceDriver.ReadFiles(d, filePattern)
 		if err != nil {
-			return fileCount, err
+			return 0, err
+		}
+
+		count += len(readers)
+
+		for _, fr := range readers {
+			logLevel := log.LEVEL_INFO
+			if ex.ctx.DryRun {
+				logLevel = log.LEVEL_DRY_RUN
+			}
+			log.Log(logLevel, "executing %s", fr.FilePath)
+			if ex.ctx.DryRun {
+				continue
+			}
+			err = ex.ctx.dbDriver.Exec(fr.Reader)
+			if err != nil {
+				return count, err
+			}
 		}
 	}
-
-	return fileCount, nil
+	return count, nil
 }
 
 func (ex *executor) executeSql() (int, error) {
@@ -306,12 +327,11 @@ func (ex *executor) executeSql() (int, error) {
 }
 
 func (ex *executor) getSchemaNames(in, except []string) ([]string, error) {
-	if err := ex.getSourceDriver(ex.command.Ref); err != nil {
+	if err := ex.ensureSourceDriverOpen(); err != nil {
 		return nil, err
 	}
-	defer ex.sourceDriver.Close()
 
-	dirReaders, err := ex.sourceDriver.ReadDirectories("schemas", ".*")
+	dirs, err := ex.getSubdirectories(SchemasRelativeDir)
 	if err != nil {
 		return nil, err
 	}
@@ -324,8 +344,8 @@ func (ex *executor) getSchemaNames(in, except []string) ([]string, error) {
 	}
 
 	schemaNames := []string{}
-	for _, dr := range dirReaders {
-		schemaName := path.Base(dr.DirectoryPath)
+	for _, d := range dirs {
+		schemaName := path.Base(d)
 		if (len(in) > 0 && sliceutil.Contains(in, schemaName)) ||
 			(len(except) > 0 && !sliceutil.Contains(except, schemaName)) ||
 			(len(in) == 0 && len(except) == 0) {
@@ -336,15 +356,54 @@ func (ex *executor) getSchemaNames(in, except []string) ([]string, error) {
 	return schemaNames, nil
 }
 
-func getRelativePathAndFilePattern(path string) (relativePath string, filePattern string) {
-	p := strings.TrimRight(path, "/")
-
-	i := strings.LastIndex(p, "/")
-	if i == -1 {
-		return "", p
+func (ex *executor) getSubdirectories(relativeDir string) ([]string, error) {
+	dirs, err := ex.resolveDirectoryWildcards(relativeDir)
+	if err != nil {
+		return nil, err
 	}
 
-	return p[:i], p[i+1:]
+	dirNames := []string{}
+	for _, d := range dirs {
+
+		if err := ex.ensureSourceDriverOpen(); err != nil {
+			return nil, err
+		}
+
+		dirReaders, err := ex.sourceDriver.ReadDirectories(d, ".*")
+		if err != nil {
+			return nil, err
+		}
+
+		for _, dr := range dirReaders {
+			dirName := path.Base(dr.DirectoryPath)
+			dirNames = append(dirNames, dirName)
+		}
+	}
+	return dirNames, nil
+}
+
+func (ex *executor) resolveDirectoryWildcards(relativeDir string) ([]string, error) {
+	if !strings.Contains(relativeDir, "?") {
+		return []string{relativeDir}, nil
+	}
+
+	i := strings.Index(relativeDir, "?")
+	dirs, err := ex.getSubdirectories(relativeDir[:i-1])
+	if err != nil {
+		return nil, err
+	}
+
+	result := []string{}
+	for _, d := range dirs {
+		base := path.Base(d)
+		names, err := ex.resolveDirectoryWildcards(strings.Replace(relativeDir, "?", base, 1))
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, names...)
+	}
+
+	return result, nil
 }
 
 func levelOrDryRun(ctx *Context, level log.LogLevel) log.LogLevel {
