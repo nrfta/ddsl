@@ -31,13 +31,13 @@ var pathPatterns = map[string]string{
 	FOREIGN_KEYS: `foreign_keys\.%s\..*`,
 	SCHEMA:       `schemas/%s/schema\.%s\..*`,
 	EXTENSIONS:   `schemas/%s/extensions\.%s\..*`,
-	TABLES:       `schemas/%s/tables/.*\.%s\..*`,
-	VIEWS:        `schemas/%s/views/.*\.%s\..*`,
+	TABLES:       `schemas/%s/tables/?/table\.%s\..*`,
+	VIEWS:        `schemas/%s/views/?/view\.%s\..*`,
 	TYPES:        `schemas/%s/types/.*\.%s\..*`,
-	TABLE:        `schemas/%s/tables/%s\.%s\..*`,
-	VIEW:         `schemas/%s/views/%s\.%s..*`,
-	INDEXES:      `schemas/%s/indexes/%s\.%s\..*`,
-	CONSTRAINTS:  `schemas/%s/constraints/%s\.%s\..*`,
+	TABLE:        `schemas/%s/tables/%s/table\.%s\..*`,
+	VIEW:         `schemas/%s/views/%s/view\.%s..*`,
+	INDEXES:      `schemas/%s/?/%s/indexes\.%s\..*`,
+	CONSTRAINTS:  `schemas/%s/?/%s/constraints\.%s\..*`,
 	TYPE:         `schemas/%s/types/%s\.%s\..*`,
 }
 
@@ -184,7 +184,8 @@ func (ex *executor) executeTables() (int, error) {
 }
 
 func (ex *executor) createIndexesAndConstraints(itemType string, schemaName string) (int, error) {
-	items, err := ex.namesOf(itemType, schemaName)
+	relativeDir := fmt.Sprintf("schemas/%s/%s", schemaName, itemType)
+	items, err := ex.getSubdirectories(relativeDir)
 	if err != nil {
 		return 0, err
 	}
@@ -192,13 +193,15 @@ func (ex *executor) createIndexesAndConstraints(itemType string, schemaName stri
 	count := 0
 	for _, item := range items {
 
-		c, err := ex.executeConstraintsWork(schemaName, item)
+		base := path.Base(item)
+
+		c, err := ex.executeConstraintsWork(schemaName, base)
 		count += c
 		if err != nil {
 			return count, err
 		}
 
-		c, err = ex.executeIndexesWork(schemaName, item)
+		c, err = ex.executeIndexesWork(schemaName, base)
 		count += c
 		if err != nil {
 			return count, err
@@ -398,28 +401,6 @@ func (ex *executor) executeCreateOrDropKey(patternKey string, params ...interfac
 
 	return count, nil
 
-}
-
-func (ex *executor) namesOf(itemType string, schemaName string) ([]string, error) {
-	if err := ex.getSourceDriver(ex.command.Ref); err != nil {
-		return nil, err
-	}
-	defer ex.sourceDriver.Close()
-
-	relativePath, filePattern := getRelativePathAndFilePattern(fmt.Sprintf(pathPatterns[itemType], schemaName, CREATE))
-	readers, err := ex.sourceDriver.ReadFiles(relativePath, filePattern)
-	if err != nil {
-		return nil, err
-	}
-
-	items := []string{}
-	for _, fr := range readers {
-		base := path.Base(fr.FilePath)
-		i := strings.Index(base, ".")
-		items = append(items, base[:i])
-	}
-
-	return items, nil
 }
 
 func parseSchemaItemName(item string) (schemaName string, tableOrViewName string, err error) {

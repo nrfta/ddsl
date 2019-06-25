@@ -83,8 +83,10 @@ var commandSpec = `ddsl,Top level command,primary
         -schema_seeds,Comma-delimited list of named seeds
     table,Seed one or more tables,primary,ext-args
       -include_tables,Comma-delimited list of tables
-      with,Comma-delimited list of seeds,optional
+      with,Seed a table,optional
         -table_seeds,Comma-delimited list of named seeds
+      without,Seed a table,optional
+        -schema_seeds,Comma-delimited list of named seeds
     tables,Seed all tables in given schemas,primary
       in,Comma delimited list of schemas,optional
         -include_schemas,Comma-delimited list of schemas
