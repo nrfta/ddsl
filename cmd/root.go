@@ -130,10 +130,15 @@ func addCreateOrDropSubCmds(createOrDropCmd *cobra.Command) {
 	createOrDropCmd.AddCommand(schemaCmd)
 	createOrDropCmd.AddCommand(tablesCmd)
 	createOrDropCmd.AddCommand(viewsCmd)
+	createOrDropCmd.AddCommand(functionsCmd)
+	createOrDropCmd.AddCommand(proceduresCmd)
 	createOrDropCmd.AddCommand(tableCmd)
 	createOrDropCmd.AddCommand(viewCmd)
+	createOrDropCmd.AddCommand(functionCmd)
+	createOrDropCmd.AddCommand(procedureCmd)
 	createOrDropCmd.AddCommand(constraintsCmd)
 	createOrDropCmd.AddCommand(indexesCmd)
+	createOrDropCmd.AddCommand(triggersCmd)
 }
 
 

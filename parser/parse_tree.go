@@ -121,9 +121,9 @@ var commandSpec = `ddsl,Top level command,primary
   sql,Run a SQL command or script,root,primary
     -command,SQL command to run
     -file,SQL file to run
-  grant,Top-level grant command,root
-    privileges,Top-level grant or revoke privileges command,optional,non-exec
-      on,Top-level grant or revoke privileges command,non-exec
+  grant,Top level grant command,root
+    privileges,Top level grant or revoke privileges command,optional,non-exec
+      on,Top level grant or revoke privileges command,non-exec
         database,Grant or revoke privileges on the database,primary
         schemas,Grant or revoke privileges on all schemas,primary
           except,Comma-delimited list of schemas to exclude,optional
