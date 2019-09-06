@@ -15,7 +15,7 @@ func (p *preprocessor) preprocessCreateOrDrop() (int, error) {
 		return p.preprocessSchemas()
 	case EXTENSIONS:
 		return p.preprocessExtensions()
-	case KEYS:
+	case FOREIGN_KEYS:
 		return p.preprocessTopLevel(FOREIGN_KEYS)
 	case ROLES:
 		return p.preprocessTopLevel(ROLES)

@@ -15,8 +15,7 @@ var commandSpec = `ddsl,Top level command,primary
   create,Top level create command,root
     database,Create or drop the database,primary
     roles,Create or drop roles,primary
-    foreign,Create or drop foreign keys
-      keys,Create or drop foreign keys,primary
+    foreign-keys,Create or drop foreign keys,primary
     schemas,Create or drop all schemas,primary
       except,Comma-delimited list of schemas to exclude,optional
         -exclude_schemas,Comma-delimited list of schemas to exclude
