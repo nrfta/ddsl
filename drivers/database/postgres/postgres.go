@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"github.com/golang-migrate/migrate"
 	"github.com/neighborly/ddsl/drivers/database"
+	"github.com/neighborly/ddsl/util"
 	"io"
 	"io/ioutil"
 	nurl "net/url"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -322,51 +322,19 @@ func (p *Postgres) Query(command io.Reader, params ...interface{}) (*sql.Rows, e
 	return rows, nil
 }
 
-func (p *Postgres) ImportCSV(filePath, schemaName, tableName, delimiter string, header bool) error {
+func (p *Postgres) ImportCSV(filePath, schemaName, tableName, delimiter string, header bool) (output string, err error) {
 	sql := fmt.Sprintf("\\COPY %s.%s FROM '%s' WITH DELIMITER '%s' CSV", schemaName, tableName, filePath, delimiter)
 	if header {
 		sql += " HEADER;"
 	} else {
 		sql += ";"
 	}
-	cmd := exec.Command("psql", p.config.URL, "-q", "-c", sql)
-	stdout, err := cmd.StdoutPipe()
+	out, err := util.OSExec("psql", p.config.URL, "-q", "-c", sql)
 	if err != nil {
-		return err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-	if err = cmd.Start(); err != nil {
-		return err
-	}
-	out, _ := ioutil.ReadAll(stdout)
-	e, _ := ioutil.ReadAll(stderr)
-	if err = cmd.Wait(); err != nil {
-		s := getOutAndErr(out, e)
-		if len(s) > 0 {
-			return fmt.Errorf(string(s))
-		}
-		return err
+		return out, err
 	}
 
-	s := getOutAndErr(out, e)
-	if len(s) > 0 {
-		fmt.Println(s)
-	}
-	return nil
-}
-
-func getOutAndErr(out, e []uint8) string {
-	s := ""
-	if len(out) > 0 {
-		s = string(out)
-	}
-	if len(e) > 0 {
-		s += string(e)
-	}
-	return s
+	return out, nil
 }
 
 func computeLineFromPos(s string, pos int) (line uint, col uint, ok bool) {

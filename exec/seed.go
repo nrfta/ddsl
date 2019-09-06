@@ -8,33 +8,31 @@ import (
 	"github.com/neighborly/ddsl/log"
 	"github.com/neighborly/ddsl/parser"
 	"io/ioutil"
-	"os"
-	"os/exec"
 	"path"
+	"sort"
 	"strings"
 )
 
 const (
-	DatabaseSeedsRelativeDir = "seeds/.*"
-	SchemasRelativeDir     = "schemas"
-	SchemaSeedsRelativeDir = "schemas/%s/seeds/.*"
-	TableSeedsRelativeDir  = `schemas/%s/tables/%s/seeds/.*`
-	CMD                    = "cmd"
-	SEED_DATABASE_NAMED    = "database_named"
-	SEED_DATABASE_PROD     = "database_prod"
-	SEED_SCHEMAS_NAMED     = "schemas_named"
-	SEED_SCHEMAS_PROD      = "schemas_prod"
-	SEED_SCHEMA_NAMED      = "schema_named"
-	SEED_SCHEMA_PROD       = "schema_prod"
-	SEED_TABLES_NAMED      = "tables_named"
-	SEED_TABLES_PROD       = "tables_prod"
-	SEED_TABLE_NAMED       = "table_named"
-	SEED_TABLE_PROD        = "table_prod"
+	DB_SEEDS_REL_DIR     = "seeds/.*"
+	SCHEMAS_REL_DIR      = "schemas"
+	SCHEMA_SEEDS_REL_DIR = "schemas/%s/seeds/.*"
+	TABLE_SEEDS_REL_DIR  = `schemas/%s/tables/%s/seeds/.*`
+	SEED_DATABASE_NAMED  = "database_named"
+	SEED_DATABASE_PROD   = "database_prod"
+	SEED_SCHEMAS_NAMED   = "schemas_named"
+	SEED_SCHEMAS_PROD    = "schemas_prod"
+	SEED_SCHEMA_NAMED    = "schema_named"
+	SEED_SCHEMA_PROD     = "schema_prod"
+	SEED_TABLES_NAMED    = "tables_named"
+	SEED_TABLES_PROD     = "tables_prod"
+	SEED_TABLE_NAMED     = "table_named"
+	SEED_TABLE_PROD      = "table_prod"
 )
 
 var seedPatterns = map[string]string{
 	SEED_DATABASE_NAMED: `seeds/%s.*`,
-	SEED_DATABASE_PROD:  `seeds/database\.seed\..*`,
+	SEED_DATABASE_PROD:  `seeds/database\..*`,
 	SEED_SCHEMAS_NAMED:  `schemas/?/seeds/%s\..*`,
 	SEED_SCHEMAS_PROD:   `schemas/?/seeds/schema\..*`,
 	SEED_SCHEMA_NAMED:   `schemas/%s/seeds/%s\..*`,
@@ -53,48 +51,48 @@ func init() {
 	shellParser.ParseBacktick = true
 }
 
-func (ex *executor) executeSeed() (int, error) {
-	switch ex.command.CommandDef.Name {
+func (p *preprocessor) preprocessSeed() (int, error) {
+	switch p.command.CommandDef.Name {
 	case DATABASE:
-		return ex.executeSeedDatabase()
+		return p.preprocessSeedDatabase()
 	case SCHEMAS:
-		return ex.executeSeedSchemas()
+		return p.preprocessSeedSchemas()
 	case SCHEMA:
-		return ex.executeSeedSchema()
+		return p.preprocessSeedSchema()
 	case TABLES:
-		return ex.executeSeedTables()
+		return p.preprocessSeedTables()
 	case TABLE:
-		return ex.executeSeedTable()
+		return p.preprocessSeedTable()
 	case SQL:
-		return ex.executeSql()
+		return p.preprocessSql()
 	case CMD:
-		return ex.seedFromShellCommand()
+		return p.seedFromShellCommand()
 	}
 
 	return 0, errors.New("unknown command")
 }
 
-func (ex *executor) executeSeedDatabase() (int, error) {
+func (p *preprocessor) preprocessSeedDatabase() (int, error) {
 	count := 0
 	var seedNames []string
 	var err error
-	switch ex.command.Clause {
+	switch p.command.Clause {
 	case "with":
-		seedNames, err = ex.getSeedNames(DatabaseSeedsRelativeDir, ex.command.ExtArgs, nil)
+		seedNames, err = p.getSeedNames(DB_SEEDS_REL_DIR, p.command.ExtArgs, nil)
 	case "without":
-		seedNames, err = ex.getSeedNames(DatabaseSeedsRelativeDir, nil, ex.command.ExtArgs)
+		seedNames, err = p.getSeedNames(DB_SEEDS_REL_DIR, nil, p.command.ExtArgs)
 	default:
-		return ex.executeSeedKey(SEED_DATABASE_PROD, map[string]string{})
+		return p.preprocessSeedKey(SEED_DATABASE_PROD, map[string]interface{}{})
 	}
 	if err != nil {
 		return count, err
 	}
 
 	for _, seedName := range seedNames {
-		params := map[string]string{
-			"seedName": seedName,
+		params := map[string]interface{}{
+			SEED_NAME: seedName,
 		}
-		c, err := ex.executeSeedKey(SEED_DATABASE_NAMED, params, seedName)
+		c, err := p.preprocessSeedKey(SEED_DATABASE_NAMED, params, seedName)
 		count += c
 		if err != nil {
 			return count, err
@@ -105,84 +103,71 @@ func (ex *executor) executeSeedDatabase() (int, error) {
 
 }
 
-func (ex *executor) executeSeedSchemas() (int, error) {
-	if len(ex.command.Clause) == 0 {
-		return ex.executeSeedKey(SEED_SCHEMAS_PROD, map[string]string{})
+func (p *preprocessor) preprocessSeedSchemas() (int, error) {
+	if len(p.command.Clause) == 0 {
+		return p.preprocessSeedKey(SEED_SCHEMAS_PROD, map[string]interface{}{})
 	}
 
-	schemaNames, err := ex.getSchemaNames(nil, nil)
+	if p.command.Clause != "except" {
+		return 0, fmt.Errorf("syntax error at '%s'", p.command.Clause)
+	}
+
+	schemaNames, err := p.getSchemaNames(nil, p.command.ExtArgs)
 	if err != nil {
 		return 0, err
 	}
 
 	count := 0
 	for _, schemaName := range schemaNames {
-		relativeDir := fmt.Sprintf(SchemaSeedsRelativeDir, schemaName)
+		pathPattern := strings.Replace(seedPatterns[SEED_SCHEMAS_PROD], "?", schemaName, 1)
 
-		var seedNames []string
-		var err error
-		switch ex.command.Clause {
-		case "with":
-			seedNames, err = ex.getSeedNames(relativeDir, ex.command.ExtArgs, nil)
-		case "without":
-			seedNames, err = ex.getSeedNames(relativeDir, nil, ex.command.ExtArgs)
-		default:
-			return count, fmt.Errorf("syntax error at '%s'", ex.command.Clause)
-		}
-
+		c, err := p.preprocessSeedPath(pathPattern, map[string]interface{}{})
+		count += c
 		if err != nil {
 			return count, err
-		}
-
-		for _, seedName := range seedNames {
-			params := map[string]string{
-				"seedName": seedName,
-			}
-			c, err := ex.executeSeedKey(SEED_SCHEMAS_NAMED, params, seedName)
-			count += c
-			if err != nil {
-				return count, err
-			}
 		}
 	}
 
 	return count, nil
 }
 
-func (ex *executor) executeSeedSchema() (int, error) {
-	if len(ex.command.Args) < 1 {
+func (p *preprocessor) preprocessSeedSchema() (int, error) {
+	if len(p.command.Args) < 1 {
 		return 0, fmt.Errorf("schema name(s) must be specified")
 	}
 
 	count := 0
-	for _, schemaName := range ex.command.Args {
 
-		if len(ex.command.Clause) == 0 {
-			return ex.executeSeedKey(SEED_SCHEMA_PROD, map[string]string{"schemaName": schemaName}, schemaName)
+	schemaNames := p.command.Args
+	sort.Strings(schemaNames)
+	for _, schemaName := range schemaNames {
+
+		if len(p.command.Clause) == 0 {
+			return p.preprocessSeedKey(SEED_SCHEMA_PROD, map[string]interface{}{SCHEMA_NAME: schemaName}, schemaName)
 		}
 
-		relativeDir := fmt.Sprintf(SchemaSeedsRelativeDir, schemaName)
+		relativeDir := fmt.Sprintf(SCHEMA_SEEDS_REL_DIR, schemaName)
 
 		var seedNames []string
 		var err error
-		switch ex.command.Clause {
+		switch p.command.Clause {
 		case "with":
-			seedNames, err = ex.getSeedNames(relativeDir, ex.command.ExtArgs, nil)
+			seedNames, err = p.getSeedNames(relativeDir, p.command.ExtArgs, nil)
 		case "without":
-			seedNames, err = ex.getSeedNames(relativeDir, nil, ex.command.ExtArgs)
+			seedNames, err = p.getSeedNames(relativeDir, nil, p.command.ExtArgs)
 		default:
-			return count, fmt.Errorf("syntax error at '%s'", ex.command.Clause)
+			return count, fmt.Errorf("syntax error at '%s'", p.command.Clause)
 		}
 		if err != nil {
 			return count, err
 		}
 
 		for _, seedName := range seedNames {
-			params := map[string]string{
-				"schemaName": schemaName,
-				"seedName":   seedName,
+			params := map[string]interface{}{
+				SCHEMA_NAME: schemaName,
+				SEED_NAME:   seedName,
 			}
-			c, err := ex.executeSeedKey(SEED_SCHEMA_NAMED, params, schemaName, seedName)
+			c, err := p.preprocessSeedKey(SEED_SCHEMA_NAMED, params, schemaName, seedName)
 			count += c
 			if err != nil {
 				return count, err
@@ -193,18 +178,18 @@ func (ex *executor) executeSeedSchema() (int, error) {
 
 }
 
-func (ex *executor) executeSeedTables() (int, error) {
+func (p *preprocessor) preprocessSeedTables() (int, error) {
 	var schemaNames []string
 	var err error
-	switch ex.command.Clause {
+	switch p.command.Clause {
 	case "in":
-		schemaNames, err = ex.getSchemaNames(ex.command.ExtArgs, nil)
+		schemaNames, err = p.getSchemaNames(p.command.ExtArgs, nil)
 	case "except in":
-		schemaNames, err = ex.getSchemaNames(nil, ex.command.ExtArgs)
+		schemaNames, err = p.getSchemaNames(nil, p.command.ExtArgs)
 	case "":
-		schemaNames, err = ex.getSchemaNames(nil, nil)
+		schemaNames, err = p.getSchemaNames(nil, nil)
 	default:
-		return 0, fmt.Errorf("syntax error at '%s'", ex.command.Clause)
+		return 0, fmt.Errorf("syntax error at '%s'", p.command.Clause)
 	}
 
 	if err != nil {
@@ -213,56 +198,82 @@ func (ex *executor) executeSeedTables() (int, error) {
 
 	count := 0
 	for _, schemaName := range schemaNames {
-		params := map[string]string{
-			"schemaName": schemaName,
-		}
-		c, err := ex.executeSeedKey(SEED_TABLES_PROD, params, schemaName)
-		count += c
+		pathPattern := fmt.Sprintf(seedPatterns[SEED_TABLES_PROD], schemaName)
+		dirs, err := p.resolveDirectoryWildcards(pathPattern)
 		if err != nil {
 			return count, err
+		}
+
+		for _, dir := range dirs {
+			tableName := strings.Split(dir, "/")[3]
+
+			params := map[string]interface{}{
+				SCHEMA_NAME: schemaName,
+				TABLE_NAME: tableName,
+			}
+
+			c, err := p.preprocessSeedPath(dir, params, schemaName, tableName)
+			count += c
+			if err != nil {
+				return count, err
+			}
 		}
 	}
 
 	return count, nil
 }
 
-func (ex *executor) executeSeedTable() (int, error) {
-	if len(ex.command.Args) < 1 {
+func (p *preprocessor) preprocessSeedTable() (int, error) {
+	if len(p.command.Args) < 1 {
 		return 0, fmt.Errorf("table name(s) must be specified")
 	}
 
 	count := 0
-	for _, schemaItem := range ex.command.Args {
+
+	schemaItems := p.command.Args
+	sort.Strings(schemaItems)
+	for _, schemaItem := range schemaItems {
 		schemaName, tableName, err := parseSchemaItemName(schemaItem)
 		if err != nil {
 			return count, err
 		}
-		if len(ex.command.Clause) == 0 {
-			return ex.executeSeedKey(SEED_TABLE_PROD, map[string]string{"schemaName": schemaName, "tableName": tableName}, schemaName, tableName)
+		if len(p.command.Clause) == 0 {
+			params := map[string]interface{}{
+				SCHEMA_NAME: schemaName,
+				TABLE_NAME:  tableName,
+			}
+
+			c, err := p.preprocessSeedKey(SEED_TABLE_PROD, params, schemaName, tableName)
+			count += c
+			if err != nil {
+				return count, err
+			}
+
+			continue
 		}
 
-		relativeDir := fmt.Sprintf(TableSeedsRelativeDir, schemaName, tableName)
+		relativeDir := fmt.Sprintf(TABLE_SEEDS_REL_DIR, schemaName, tableName)
 
 		var seedNames []string
-		switch ex.command.Clause {
+		switch p.command.Clause {
 		case "with":
-			seedNames, err = ex.getSeedNames(relativeDir, ex.command.ExtArgs, nil)
+			seedNames, err = p.getSeedNames(relativeDir, p.command.ExtArgs, nil)
 		case "without":
-			seedNames, err = ex.getSeedNames(relativeDir, nil, ex.command.ExtArgs)
+			seedNames, err = p.getSeedNames(relativeDir, nil, p.command.ExtArgs)
 		default:
-			return count, fmt.Errorf("syntax error at '%s'", ex.command.Clause)
+			return count, fmt.Errorf("syntax error at '%s'", p.command.Clause)
 		}
 		if err != nil {
 			return count, err
 		}
 
 		for _, seedName := range seedNames {
-			params := map[string]string{
-				"schemaName": schemaName,
-				"tableName": tableName,
-				"seedName":   seedName,
+			params := map[string]interface{}{
+				SCHEMA_NAME: schemaName,
+				TABLE_NAME:  tableName,
+				SEED_NAME:   seedName,
 			}
-			c, err := ex.executeSeedKey(SEED_TABLE_NAMED, params, schemaName, tableName, seedName)
+			c, err := p.preprocessSeedKey(SEED_TABLE_NAMED, params, schemaName, tableName, seedName)
 			count += c
 			if err != nil {
 				return count, err
@@ -273,75 +284,74 @@ func (ex *executor) executeSeedTable() (int, error) {
 
 }
 
-
-func (ex *executor) executeSeedKey(patternKey string, paramsMap map[string]string, params ...interface{}) (int, error) {
+func (p *preprocessor) preprocessSeedKey(patternKey string, paramsMap map[string]interface{}, params ...interface{}) (int, error) {
 	pathPattern := fmt.Sprintf(seedPatterns[patternKey], params...)
+	return p.preprocessSeedPath(pathPattern, paramsMap, params...)
+}
 
-	if err := ex.ensureSourceDriverOpen(); err != nil {
+func (p *preprocessor) preprocessSeedPath(pathPattern string, paramsMap map[string]interface{}, params ...interface{}) (int, error) {
+
+	relativePath, filePattern := path.Split(pathPattern)
+
+	dirs, err := p.resolveDirectoryWildcards(relativePath)
+	if err != nil {
 		return 0, err
 	}
 
-	relativePath, filePattern := path.Split(pathPattern)
-	readers, err := ex.sourceDriver.ReadFiles(relativePath, filePattern)
-	if err != nil {
+	if err := p.ensureSourceDriverOpen(); err != nil {
 		return 0, err
 	}
 
 	count := 0
 
-	for _, fr := range readers {
-		ext := path.Ext(fr.FilePath)
-		action := ""
-		switch ext {
-		case ".csv":
-			if !strings.Contains(patternKey, "table") {
-				return count, fmt.Errorf("only tables can be seeded with CSV: %s", fr.FilePath)
-			}
-			action = "seeding with CSV"
-		case ".ddsl":
-			action = "seeding with DDSL"
-		case ".sql": // TODO ".sh", ".ddsl":
-			action = "seeding with SQL"
-		default:
-			return count, fmt.Errorf("unsupported file %s", fr.FilePath)
+	for _, dir := range dirs {
+		readers, err := p.sourceDriver.ReadFiles(dir, filePattern)
+		if err != nil {
+			return 0, err
 		}
 
-		log.Log(levelOrDryRun(ex.ctx, log.LEVEL_INFO), "%s %s", action, fr.FilePath)
-		if ex.ctx.DryRun {
-			continue
-		}
+		for _, fr := range readers {
+			ext := path.Ext(fr.FilePath)
+			switch ext {
+			case ".csv":
+				if !strings.Contains(relativePath, "/tables/") {
+					return count, fmt.Errorf("only tables can be seeded with CSV: %s", fr.FilePath)
+				}
+				log.Debug("preprocessing CSV seed %s", fr.FilePath)
+				paramsMap[FILE_PATH] = fr.FilePath
+				p.ctx.addInstructionWithParams(INSTR_CSV_FILE, paramsMap)
+				count++
+			case ".sql": // TODO ".sh", ".ddsl":
+				log.Debug("preprocessing SQL seed %s", fr.FilePath)
+				paramsMap[FILE_PATH] = fr.FilePath
+				p.ctx.addInstructionWithParams(INSTR_SQL_FILE, paramsMap)
+				count++
+			case ".ddsl":
+				log.Debug("preprocessing DDSL seed %s", fr.FilePath)
+				commandBytes, err := ioutil.ReadFile(fr.FilePath)
+				if err != nil {
+					return count, err
+				}
 
-		switch ext {
-		case ".sql":
-			count++
-			if err = ex.ctx.dbDriver.Exec(fr.Reader); err != nil {
-				return count, err
-			}
-		case ".csv":
-			count++
-			schemaName := paramsMap["schemaName"]
-			tableName := paramsMap["tableName"]
+				command := string(commandBytes)
+				cmds, _, _, err := parser.Parse(command)
+				if err != nil {
+					return count, err
+				}
+				p.ctx.pushNesting()
+				p.ctx.addInstructionWithParams(INSTR_DDSL_FILE, map[string]interface{}{FILE_PATH: fr.FilePath})
 
-			if err = ex.ctx.dbDriver.ImportCSV(fr.FilePath, schemaName, tableName, ",", true); err != nil {
-				return count, err
-			}
-		case ".ddsl":
-			commandBytes, err := ioutil.ReadFile(fr.FilePath)
-			if err != nil {
-				return count, err
-			}
+				c, err := preprocessBatch(p.ctx, cmds)
 
-			command := string(commandBytes)
-			cmds, _, _, err := parser.Parse(command)
-			if err != nil {
-				return count, err
-			}
-			ex.ctx.pushNesting()
-			c, err := executeBatch(ex.ctx, cmds)
-			ex.ctx.popNesting()
-			count += c
-			if err != nil {
-				return count, err
+				p.ctx.popNesting()
+				p.ctx.addInstruction(INSTR_DDSL_FILE_END)
+
+				count += c
+				if err != nil {
+					return count, err
+				}
+			default:
+				return count, fmt.Errorf("unsupported file %s", fr.FilePath)
 			}
 		}
 	}
@@ -349,58 +359,30 @@ func (ex *executor) executeSeedKey(patternKey string, paramsMap map[string]strin
 	return count, nil
 }
 
-func (ex *executor) seedFromShellCommand() (int, error) {
-	if len(ex.command.ExtArgs) != 1 {
+func (p *preprocessor) seedFromShellCommand() (int, error) {
+	if len(p.command.ExtArgs) != 1 {
 		return 0, fmt.Errorf("the sql command requires one argument")
 	}
 
-	tokens, err := shellParser.Parse(ex.command.ExtArgs[0])
+	tokens, err := shellParser.Parse(p.command.ExtArgs[0])
 	if err != nil {
 		return 0, err
 	}
 
-	log.Log(levelOrDryRun(ex.ctx, log.LEVEL_INFO), "seeding with shell command: %s", ex.command.ExtArgs[0])
-	if ex.ctx.DryRun {
-		return 1, nil
-	}
+	log.Debug("preprocessing seed shell command: %s", p.command.ExtArgs[0])
 
 	command := tokens[0]
 	args := []string{}
 	if len(tokens) > 1 {
 		args = tokens[1:]
 	}
-	cmd := exec.Command(command, args...)
-	cmd.Env = append(os.Environ(),
-		"DDSL_SOURCE="+ex.ctx.SourceRepo,
-		"DDSL_DATABASE="+ex.ctx.DatbaseUrl,
-	)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return 0, err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return 0, err
-	}
-	if err = cmd.Start(); err != nil {
-		return 0, err
-	}
-	out, _ := ioutil.ReadAll(stdout)
-	e, _ := ioutil.ReadAll(stderr)
-	if err = cmd.Wait(); err != nil {
-		s := getOutAndErr(out, e)
-		if len(s) > 0 {
-			return 0, fmt.Errorf(string(s))
-		}
-		return 0, err
-	}
 
-	s := getOutAndErr(out, e)
-	if len(s) > 0 {
-		fmt.Println(s)
+	params := map[string]interface{}{
+		COMMAND: command,
+		ARGS:    args,
 	}
+	p.ctx.addInstructionWithParams(INSTR_SH_SCRIPT, params)
 	return 1, nil
-
 }
 
 func getOutAndErr(out, e []uint8) string {
@@ -414,23 +396,25 @@ func getOutAndErr(out, e []uint8) string {
 	return s
 }
 
-func (ex *executor) getSeedNames(relativeFilePathPattern string, with, without []string) ([]string, error) {
-	if err := ex.ensureSourceDriverOpen(); err != nil {
+func (p *preprocessor) getSeedNames(relativeFilePathPattern string, with, without []string) ([]string, error) {
+	if err := p.ensureSourceDriverOpen(); err != nil {
 		return nil, err
 	}
 
 	relativeDir, filePattern := path.Split(relativeFilePathPattern)
-	dirs, err := ex.resolveDirectoryWildcards(relativeDir)
+	dirs, err := p.resolveDirectoryWildcards(relativeDir)
 	if err != nil {
 		return nil, err
 	}
 
 	seedNames := []string{}
 	for _, d := range dirs {
-		frs, err := ex.sourceDriver.ReadFiles(d, filePattern)
+		frs, err := p.sourceDriver.ReadFiles(d, filePattern)
 		if err != nil {
 			return nil, err
 		}
+
+		namedSeed := with != nil || without !=nil
 
 		if with == nil {
 			with = []string{}
@@ -443,6 +427,9 @@ func (ex *executor) getSeedNames(relativeFilePathPattern string, with, without [
 			i := strings.Index(path.Base(fr.FilePath), ".")
 			seedName := path.Base(fr.FilePath)[:i]
 			if sliceutil.Contains(seedNames, seedName) {
+				continue
+			}
+			if namedSeed && (seedName == "database" || seedName == "schema" || seedName == "table") {
 				continue
 			}
 			if (len(with) > 0 && sliceutil.Contains(with, seedName)) ||

@@ -15,7 +15,8 @@ var commandSpec = `ddsl,Top level command,primary
   create,Top level create command,root
     database,Create or drop the database,primary
     roles,Create or drop roles,primary
-    foreign-keys,Create or drop foreign keys,primary
+    foreign,Create or drop foreign keys
+      keys,Create or drop foreign keys,primary
     schemas,Create or drop all schemas,primary
       except,Comma-delimited list of schemas to exclude,optional
         -exclude_schemas,Comma-delimited list of schemas to exclude
@@ -39,6 +40,18 @@ var commandSpec = `ddsl,Top level command,primary
       except,Comma-delimited list of schemas to exclude,optional
         in,Comma delimited list of schemas
           -exclude_schemas,Comma-delimited list of schemas
+    functions,Create or drop all functions in one or more schemas,primary
+      in,Comma delimited list of schemas,optional
+        -include_schemas,Comma-delimited list of schemas
+      except,Comma-delimited list of schemas to exclude,optional
+        in,Comma delimited list of schemas
+          -exclude_schemas,Comma-delimited list of schemas
+    procedures,Create or drop all procedures in one or more schemas,primary
+      in,Comma delimited list of schemas,optional
+        -include_schemas,Comma-delimited list of schemas
+      except,Comma-delimited list of schemas to exclude,optional
+        in,Comma delimited list of schemas
+          -exclude_schemas,Comma-delimited list of schemas
     table,Create or drop one or more tables,primary
       -include_tables,Comma-delimited list of tables
     view,Create or drop one or more views,primary
@@ -49,6 +62,13 @@ var commandSpec = `ddsl,Top level command,primary
     constraints,Create or drop all constraints on one or more tables,primary
       on,Comma delimited list of tables
         -include_tables,Comma-delimited list of tables
+    triggers,Create or drop all triggers on one or more tables,primary
+      on,Comma delimited list of tables
+        -include_tables,Comma-delimited list of tables
+    function,Create or drop one or more functions,primary
+      -include_functions,Comma-delimited list of functions
+    procedure,Create or drop one or more procedures,primary
+      -include_procedures,Comma-delimited list of procedures
     types,Create or drop all types in one or more schemas,primary
       in,Create or drop types,optional
         -include_schemas,Comma-delimited list of schemas

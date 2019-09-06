@@ -7,86 +7,62 @@ import (
 	"strings"
 )
 
-const (
-	DATABASE     string = "database"
-	EXTENSIONS   string = "extensions"
-	ROLES        string = "roles"
-	SCHEMAS      string = "schemas"
-	FOREIGN_KEYS string = "foreign_keys"
-	SCHEMA       string = "schema"
-	TABLES       string = "tables"
-	VIEWS        string = "views"
-	TABLE        string = "table"
-	VIEW         string = "view"
-	INDEXES      string = "indexes"
-	CONSTRAINTS  string = "constraints"
-	TYPE         string = "type"
-	TYPES        string = "types"
-)
-
-var pathPatterns = map[string]string{
-	DATABASE:     `database\.%s\..*`,
-	ROLES:        `roles\.%s\..*`,
-	SCHEMAS:      `scheams\.*`,
-	FOREIGN_KEYS: `foreign_keys\.%s\..*`,
-	SCHEMA:       `schemas/%s/schema\.%s\..*`,
-	EXTENSIONS:   `schemas/%s/extensions\.%s\..*`,
-	TABLES:       `schemas/%s/tables/?/table\.%s\..*`,
-	VIEWS:        `schemas/%s/views/?/view\.%s\..*`,
-	TYPES:        `schemas/%s/types/.*\.%s\..*`,
-	TABLE:        `schemas/%s/tables/%s/table\.%s\..*`,
-	VIEW:         `schemas/%s/views/%s/view\.%s..*`,
-	INDEXES:      `schemas/%s/?/%s/indexes\.%s\..*`,
-	CONSTRAINTS:  `schemas/%s/?/%s/constraints\.%s\..*`,
-	TYPE:         `schemas/%s/types/%s\.%s\..*`,
-}
-
-func (ex *executor) executeCreateOrDrop() (int, error) {
-	switch ex.command.CommandDef.Name {
+func (p *preprocessor) preprocessCreateOrDrop() (int, error) {
+	switch p.command.CommandDef.Name {
 	case DATABASE:
-		return ex.executeDatabase()
+		return p.preprocessDatabase()
 	case SCHEMAS:
-		return ex.executeSchemas()
+		return p.preprocessSchemas()
 	case EXTENSIONS:
-		return ex.executeExtensions()
-	case FOREIGN_KEYS:
-		return ex.executeTopLevel(FOREIGN_KEYS)
+		return p.preprocessExtensions()
+	case KEYS:
+		return p.preprocessTopLevel(FOREIGN_KEYS)
 	case ROLES:
-		return ex.executeTopLevel(ROLES)
+		return p.preprocessTopLevel(ROLES)
 	case SCHEMA:
-		return ex.executeSchema()
+		return p.preprocessSchema()
 	case TABLE:
-		return ex.executeSchemaItem(TABLE)
+		return p.preprocessSchemaItem(TABLE)
 	case VIEW:
-		return ex.executeSchemaItem(VIEW)
+		return p.preprocessSchemaItem(VIEW)
+	case FUNCTION:
+		return p.preprocessSchemaItem(FUNCTION)
+	case PROCEDURE:
+		return p.preprocessSchemaItem(PROCEDURE)
 	case INDEXES:
-		return ex.executeIndexes()
+		return p.preprocessIndexes()
 	case CONSTRAINTS:
-		return ex.executeConstraints()
+		return p.preprocessConstraints()
+	case TRIGGERS:
+		return p.preprocessTriggers()
 	case TABLES:
-		return ex.executeTables()
+		return p.preprocessTables()
 	case VIEWS:
-		return ex.executeViews()
+		return p.preprocessViews()
+	case FUNCTIONS:
+		return p.preprocessFunctions()
+	case PROCEDURES:
+		return p.preprocessProcedures()
 	case TYPE:
-		return ex.executeSchemaItem(TYPE)
+		return p.preprocessSchemaItem(TYPE)
 	case TYPES:
-		return ex.executeTypes()
+		return p.preprocessTypes()
 	}
 
 	return 0, errors.New("unknown command")
 }
 
-func (ex *executor) executeTypes() (int, error) {
+func (p *preprocessor) preprocessTypes() (int, error) {
 
 	var schemaNames []string
 	var err error
-	switch ex.command.Clause {
+	switch p.command.Clause {
 	case "in":
-		schemaNames, err = ex.getSchemaNames(ex.command.ExtArgs, nil)
+		schemaNames, err = p.getSchemaNames(p.command.ExtArgs, nil)
 	case "except in":
-		schemaNames, err = ex.getSchemaNames(nil, ex.command.ExtArgs)
+		schemaNames, err = p.getSchemaNames(nil, p.command.ExtArgs)
 	default:
-		schemaNames, err = ex.getSchemaNames(nil, nil)
+		schemaNames, err = p.getSchemaNames(nil, nil)
 	}
 	if err != nil {
 		return 0, err
@@ -94,7 +70,7 @@ func (ex *executor) executeTypes() (int, error) {
 
 	count := 0
 	for _, schemaName := range schemaNames {
-		c, err := ex.executeCreateOrDropKey(TYPES, schemaName)
+		c, err := p.preprocessCreateOrDropKey(TYPES, schemaName)
 		count += c
 		if err != nil {
 			return count, err
@@ -104,17 +80,16 @@ func (ex *executor) executeTypes() (int, error) {
 	return count, nil
 }
 
-
-func (ex *executor) executeViews() (int, error) {
+func (p *preprocessor) preprocessViews() (int, error) {
 	var schemaNames []string
 	var err error
-	switch ex.command.Clause {
+	switch p.command.Clause {
 	case "in":
-		schemaNames, err = ex.getSchemaNames(ex.command.ExtArgs, nil)
+		schemaNames, err = p.getSchemaNames(p.command.ExtArgs, nil)
 	case "except in":
-		schemaNames, err = ex.getSchemaNames(nil, ex.command.ExtArgs)
+		schemaNames, err = p.getSchemaNames(nil, p.command.ExtArgs)
 	default:
-		schemaNames, err = ex.getSchemaNames(nil, nil)
+		schemaNames, err = p.getSchemaNames(nil, nil)
 	}
 	if err != nil {
 		return 0, err
@@ -122,18 +97,18 @@ func (ex *executor) executeViews() (int, error) {
 
 	count := 0
 	for _, schemaName := range schemaNames {
-		c, err := ex.executeCreateOrDropKey(VIEWS, schemaName)
+		c, err := p.preprocessCreateOrDropKey(VIEWS, schemaName)
 		count += c
 		if err != nil {
 			return count, err
 		}
 
-		if ex.createOrDrop == DROP {
+		if p.createOrDrop == DROP {
 			continue
 		}
 
 		if c > 0 {
-			c, err := ex.createIndexesAndConstraints(VIEWS, schemaName)
+			c, err := p.preprocessIndexesConstraintsAndPrivileges(VIEWS, schemaName)
 			count += c
 			if err != nil {
 				return count, err
@@ -144,16 +119,16 @@ func (ex *executor) executeViews() (int, error) {
 	return count, nil
 }
 
-func (ex *executor) executeTables() (int, error) {
+func (p *preprocessor) preprocessTables() (int, error) {
 	var schemaNames []string
 	var err error
-	switch ex.command.Clause {
+	switch p.command.Clause {
 	case "in":
-		schemaNames, err = ex.getSchemaNames(ex.command.ExtArgs, nil)
+		schemaNames, err = p.getSchemaNames(p.command.ExtArgs, nil)
 	case "except in":
-		schemaNames, err = ex.getSchemaNames(nil, ex.command.ExtArgs)
+		schemaNames, err = p.getSchemaNames(nil, p.command.ExtArgs)
 	default:
-		schemaNames, err = ex.getSchemaNames(nil, nil)
+		schemaNames, err = p.getSchemaNames(nil, nil)
 	}
 	if err != nil {
 		return 0, err
@@ -161,18 +136,18 @@ func (ex *executor) executeTables() (int, error) {
 
 	count := 0
 	for _, schemaName := range schemaNames {
-		c, err := ex.executeCreateOrDropKey(TABLES, schemaName)
+		c, err := p.preprocessCreateOrDropKey(TABLES, schemaName)
 		count += c
 		if err != nil {
 			return count, err
 		}
 
-		if ex.createOrDrop == DROP {
+		if p.createOrDrop == DROP {
 			continue
 		}
 
 		if c > 0 {
-			c, err := ex.createIndexesAndConstraints(TABLES, schemaName)
+			c, err := p.preprocessIndexesConstraintsAndPrivileges(TABLES, schemaName)
 			count += c
 			if err != nil {
 				return count, err
@@ -183,9 +158,87 @@ func (ex *executor) executeTables() (int, error) {
 	return count, nil
 }
 
-func (ex *executor) createIndexesAndConstraints(itemType string, schemaName string) (int, error) {
+func (p *preprocessor) preprocessFunctions() (int, error) {
+	var schemaNames []string
+	var err error
+	switch p.command.Clause {
+	case "in":
+		schemaNames, err = p.getSchemaNames(p.command.ExtArgs, nil)
+	case "except in":
+		schemaNames, err = p.getSchemaNames(nil, p.command.ExtArgs)
+	default:
+		schemaNames, err = p.getSchemaNames(nil, nil)
+	}
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, schemaName := range schemaNames {
+		c, err := p.preprocessCreateOrDropKey(FUNCTIONS, schemaName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+
+		if p.createOrDrop == DROP {
+			continue
+		}
+
+		if c > 0 {
+			c, err := p.preprocessIndexesConstraintsAndPrivileges(FUNCTIONS, schemaName)
+			count += c
+			if err != nil {
+				return count, err
+			}
+		}
+	}
+
+	return count, nil
+}
+
+func (p *preprocessor) preprocessProcedures() (int, error) {
+	var schemaNames []string
+	var err error
+	switch p.command.Clause {
+	case "in":
+		schemaNames, err = p.getSchemaNames(p.command.ExtArgs, nil)
+	case "except in":
+		schemaNames, err = p.getSchemaNames(nil, p.command.ExtArgs)
+	default:
+		schemaNames, err = p.getSchemaNames(nil, nil)
+	}
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, schemaName := range schemaNames {
+		c, err := p.preprocessCreateOrDropKey(PROCEDURES, schemaName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+
+		if p.createOrDrop == DROP {
+			continue
+		}
+
+		if c > 0 {
+			c, err := p.preprocessIndexesConstraintsAndPrivileges(PROCEDURES, schemaName)
+			count += c
+			if err != nil {
+				return count, err
+			}
+		}
+	}
+
+	return count, nil
+}
+
+func (p *preprocessor) preprocessIndexesConstraintsAndPrivileges(itemType string, schemaName string) (int, error) {
 	relativeDir := fmt.Sprintf("schemas/%s/%s", schemaName, itemType)
-	items, err := ex.getSubdirectories(relativeDir)
+	items, err := p.getSubdirectories(relativeDir)
 	if err != nil {
 		return 0, err
 	}
@@ -195,13 +248,19 @@ func (ex *executor) createIndexesAndConstraints(itemType string, schemaName stri
 
 		base := path.Base(item)
 
-		c, err := ex.executeConstraintsWork(schemaName, base)
+		c, err := p.preprocessConstraintsWork(schemaName, base)
 		count += c
 		if err != nil {
 			return count, err
 		}
 
-		c, err = ex.executeIndexesWork(schemaName, base)
+		c, err = p.preprocessIndexesWork(schemaName, base)
+		count += c
+		if err != nil {
+			return count, err
+		}
+
+		c, err = p.preprocessPrivilegesWork(schemaName, base)
 		count += c
 		if err != nil {
 			return count, err
@@ -211,20 +270,24 @@ func (ex *executor) createIndexesAndConstraints(itemType string, schemaName stri
 	return count, nil
 }
 
-func (ex *executor) executeConstraints() (int, error) {
+func (p *preprocessor) preprocessPrivilegesWork(schemaName, tableName string) (int, error) {
+	return p.preprocessGrantOrRevokeKey(PRIVILEGES, schemaName, tableName)
+}
+
+func (p *preprocessor) preprocessConstraints() (int, error) {
 	count := 0
 
-	if ex.command.Clause != "on" {
+	if p.command.Clause != "on" {
 		return count, fmt.Errorf("comma-delimited list of tables is required")
 	}
 
-	for _, n := range ex.command.ExtArgs {
+	for _, n := range p.command.ExtArgs {
 		schemaName, tableName, err := parseSchemaItemName(n)
 		if err != nil {
 			return count, err
 		}
 
-		c, err := ex.executeConstraintsWork(schemaName, tableName)
+		c, err := p.preprocessConstraintsWork(schemaName, tableName)
 		count += c
 		if err != nil {
 			return count, err
@@ -233,24 +296,24 @@ func (ex *executor) executeConstraints() (int, error) {
 
 	return count, nil
 }
-func (ex *executor) executeConstraintsWork(schemaName, tableName string) (int, error) {
-	return ex.executeCreateOrDropKey(CONSTRAINTS, schemaName, tableName)
+func (p *preprocessor) preprocessConstraintsWork(schemaName, tableName string) (int, error) {
+	return p.preprocessCreateOrDropKey(CONSTRAINTS, schemaName, tableName)
 }
 
-func (ex *executor) executeIndexes() (int, error) {
+func (p *preprocessor) preprocessIndexes() (int, error) {
 	count := 0
 
-	if ex.command.Clause != "on" {
+	if p.command.Clause != "on" {
 		return count, fmt.Errorf("comma-delimited list of tables or views is required")
 	}
 
-	for _, n := range ex.command.ExtArgs {
+	for _, n := range p.command.ExtArgs {
 		schemaName, tableName, err := parseSchemaItemName(n)
 		if err != nil {
 			return count, err
 		}
 
-		c, err := ex.executeIndexesWork(schemaName, tableName)
+		c, err := p.preprocessIndexesWork(schemaName, tableName)
 		count += c
 		if err != nil {
 			return count, err
@@ -259,59 +322,96 @@ func (ex *executor) executeIndexes() (int, error) {
 
 	return count, nil
 }
-func (ex *executor) executeIndexesWork(schemaName, tableOrViewName string) (int, error) {
-	return ex.executeCreateOrDropKey(INDEXES, schemaName, tableOrViewName)
+func (p *preprocessor) preprocessIndexesWork(schemaName, tableOrViewName string) (int, error) {
+	return p.preprocessCreateOrDropKey(INDEXES, schemaName, tableOrViewName)
 }
 
-func (ex *executor) executeSchemaItem(tableOrView string) (int, error) {
+func (p *preprocessor) preprocessTriggers() (int, error) {
 	count := 0
 
-	if len(ex.command.ExtArgs) == 0 {
-		return count, fmt.Errorf("comma-delimited list of %ss must be provided", tableOrView)
+	if p.command.Clause != "on" {
+		return count, fmt.Errorf("comma-delimited list of tables or views is required")
 	}
 
-	for _, n := range ex.command.ExtArgs {
+	for _, n := range p.command.ExtArgs {
+		schemaName, tableName, err := parseSchemaItemName(n)
+		if err != nil {
+			return count, err
+		}
+
+		c, err := p.preprocessCreateOrDropKey(TRIGGERS, schemaName, tableName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
+}
+
+func (p *preprocessor) preprocessSchemaItem(itemType string) (int, error) {
+	count := 0
+
+	if len(p.command.ExtArgs) == 0 {
+		return count, fmt.Errorf("comma-delimited list of %ss must be provided", itemType)
+	}
+
+	for _, n := range p.command.ExtArgs {
 		schemaName, tableOrViewName, err := parseSchemaItemName(n)
 		if err != nil {
 			return count, err
 		}
 
-		c, err := ex.executeCreateOrDropKey(tableOrView, schemaName, tableOrViewName)
+		c, err := p.preprocessCreateOrDropKey(itemType, schemaName, tableOrViewName)
 		count += c
 		if err != nil {
 			return count, err
 		}
 
-		if ex.createOrDrop == DROP {
+		if p.createOrDrop == DROP {
 			continue
 		}
 
-		// when creating a table, also create its constraints and indexes
 		if c > 0 {
-			c, err := ex.executeConstraintsWork(schemaName, tableOrViewName)
+			// when creating a table, also create its constraints
+			if itemType == TABLE {
+				c, err := p.preprocessConstraintsWork(schemaName, tableOrViewName)
+				count += c
+				if err != nil {
+					return count, err
+				}
+			}
+
+			// when creating a table or view, also create its indexes
+			if itemType == TABLE || itemType == VIEW {
+				c, err = p.preprocessIndexesWork(schemaName, tableOrViewName)
+				count += c
+				if err != nil {
+					return count, err
+				}
+			}
+
+			// when creating any schema item, also grant its privileges
+			c, err = p.preprocessPrivilegesWork(schemaName, tableOrViewName)
 			count += c
 			if err != nil {
 				return count, err
 			}
-
-			c, err = ex.executeIndexesWork(schemaName, tableOrViewName)
-			count += c
-			return count, err
 		}
 	}
 	return count, nil
 }
 
-func (ex *executor) executeExtensions() (int, error) {
+func (p *preprocessor) preprocessExtensions() (int, error) {
 	var schemaNames []string
 	var err error
-	switch ex.command.Clause {
+	switch p.command.Clause {
 	case "in":
-		schemaNames, err = ex.getSchemaNames(ex.command.ExtArgs, nil)
+		schemaNames, err = p.getSchemaNames(p.command.ExtArgs, nil)
 	case "except in":
-		schemaNames, err = ex.getSchemaNames(nil, ex.command.ExtArgs)
+		schemaNames, err = p.getSchemaNames(nil, p.command.ExtArgs)
 	default:
-		schemaNames, err = ex.getSchemaNames(nil, nil)
+		schemaNames, err = p.getSchemaNames(nil, nil)
 	}
 	if err != nil {
 		return 0, err
@@ -319,7 +419,7 @@ func (ex *executor) executeExtensions() (int, error) {
 
 	count := 0
 	for _, schemaName := range schemaNames {
-		c, err := ex.executeCreateOrDropKey(EXTENSIONS, schemaName)
+		c, err := p.preprocessCreateOrDropKey(EXTENSIONS, schemaName)
 		count += c
 		if err != nil {
 			return count, err
@@ -329,11 +429,11 @@ func (ex *executor) executeExtensions() (int, error) {
 	return count, nil
 }
 
-func (ex *executor) executeSchema() (int, error) {
+func (p *preprocessor) preprocessSchema() (int, error) {
 	count := 0
 
-	for _, schemaName := range ex.command.ExtArgs {
-		c, err := ex.executeSchemaWork(schemaName)
+	for _, schemaName := range p.command.ExtArgs {
+		c, err := p.preprocessSchemaWork(schemaName)
 		count += c
 		if err != nil {
 			return count, err
@@ -343,8 +443,8 @@ func (ex *executor) executeSchema() (int, error) {
 	return count, nil
 }
 
-func (ex *executor) executeSchemaWork(schemaName string) (int, error) {
-	count, err := ex.executeCreateOrDropKey(SCHEMA, schemaName)
+func (p *preprocessor) preprocessSchemaWork(schemaName string) (int, error) {
+	count, err := p.preprocessCreateOrDropKey(SCHEMA, schemaName)
 	if err != nil {
 		return count, err
 	}
@@ -352,8 +452,8 @@ func (ex *executor) executeSchemaWork(schemaName string) (int, error) {
 	return count, nil
 }
 
-func (ex *executor) executeDatabase() (int, error) {
-	count, err := ex.executeTopLevel(DATABASE)
+func (p *preprocessor) preprocessDatabase() (int, error) {
+	count, err := p.preprocessTopLevel(DATABASE)
 	if err != nil {
 		return count, err
 	}
@@ -361,27 +461,27 @@ func (ex *executor) executeDatabase() (int, error) {
 	return count, nil
 }
 
-func (ex *executor) executeTopLevel(itemType string) (int, error) {
-	return ex.executeCreateOrDropKey(itemType)
+func (p *preprocessor) preprocessTopLevel(itemType string) (int, error) {
+	return p.preprocessCreateOrDropKey(itemType)
 }
 
-func (ex *executor) executeSchemas() (int, error) {
+func (p *preprocessor) preprocessSchemas() (int, error) {
 	count := 0
 
 	var schemaNames []string
 	var err error
-	switch ex.command.Clause {
+	switch p.command.Clause {
 	case "except":
-		schemaNames, err = ex.getSchemaNames(nil, ex.command.ExtArgs)
+		schemaNames, err = p.getSchemaNames(nil, p.command.ExtArgs)
 	default:
-		schemaNames, err = ex.getSchemaNames(nil, nil)
+		schemaNames, err = p.getSchemaNames(nil, nil)
 	}
 	if err != nil {
 		return count, err
 	}
 
 	for _, schemaName := range schemaNames {
-		c, err := ex.executeSchemaWork(schemaName)
+		c, err := p.preprocessSchemaWork(schemaName)
 		count += c
 		if err != nil {
 			return count, err
@@ -391,10 +491,10 @@ func (ex *executor) executeSchemas() (int, error) {
 	return count, nil
 }
 
-func (ex *executor) executeCreateOrDropKey(patternKey string, params ...interface{}) (int, error) {
-	params = append(params, ex.createOrDrop)
+func (p *preprocessor) preprocessCreateOrDropKey(patternKey string, params ...interface{}) (int, error) {
+	params = append(params, p.createOrDrop)
 	path := fmt.Sprintf(pathPatterns[patternKey], params...)
-	count, err := ex.execute(path)
+	count, err := p.makeFileInstructions(path)
 	if err != nil {
 		return count, err
 	}

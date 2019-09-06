@@ -1,0 +1,1 @@
+DROP DATABASE IF EXISTS foo_database;
