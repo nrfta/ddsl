@@ -31,7 +31,7 @@ func init() {
 	posTests = []ppTestSpec{
 		{"create database", []*instruction{{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("database.create.sql")}}}},
 		{"create roles", []*instruction{{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("roles.create.sql")}}}},
-		{"create foreign keys", []*instruction{{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("foreign_keys.create.sql")}}}},
+		{"create foreign-keys", []*instruction{{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("foreign_keys.create.sql")}}}},
 		{"create schemas", []*instruction{
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/schema.create.sql")}},
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/baz_schema/schema.create.sql")}},
