@@ -17,7 +17,7 @@ func ensureAuditTable(ctx *Context) error {
 	return ctx.dbDriver.Exec(strings.NewReader(sql))
 }
 
-func (ex *executor) audit() error {
+func (p *processor) audit(ddslCommand string) error {
 	sql := `
 	INSERT INTO ddsl_audit (ddsl_command, performed_at, by_db_user, by_os_user)
 	VALUES ('%s', NOW(), '%s', '%s');
@@ -27,7 +27,7 @@ func (ex *executor) audit() error {
 		return err
 	}
 
-	sql = fmt.Sprintf(sql, ex.command.Text, ex.ctx.dbDriver.User(), osUser.Username)
-	return ex.ctx.dbDriver.Exec(strings.NewReader(sql))
+	sql = fmt.Sprintf(sql, ddslCommand, p.ctx.dbDriver.User(), osUser.Username)
+	return p.ctx.dbDriver.Exec(strings.NewReader(sql))
 
 }

@@ -21,7 +21,6 @@ type negTestSpec struct {
 }
 
 var positiveTests = []posTestSpec{
-	posTestSpec{"seed table foo_schema.foo_table with foo_seed,bar_seed", "seed","table", "with",[]string{"foo_schema.foo_table"},[]string{"foo_seed","bar_seed"}},
 	posTestSpec{"create database","create", "database", "", []string{}, []string{}},
 	posTestSpec{"create DATABASE","create", "database", "", []string{}, []string{}},
 	posTestSpec{"CREATE DATABASE","create", "database", "", []string{}, []string{}},

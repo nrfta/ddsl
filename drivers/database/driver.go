@@ -78,7 +78,7 @@ type Driver interface {
 	Query(command io.Reader, params ...interface{}) (*sql.Rows, error)
 
 	// ImportCSV imports a csv file into the database.
-	ImportCSV(filePath, schemaName, tableName, delimiter string, header bool) error
+	ImportCSV(filePath, schemaName, tableName, delimiter string, header bool) (output string, err error)
 
 	// User returns the database user.
 	User() string

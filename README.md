@@ -68,11 +68,16 @@ create extensions [ (in | except in) <schema_name>[,<schema_name> ...] ]
 create tables [ (in | except in) <schema_name>[,<schema_name> ...] ]
 create views [ (in | except in) <schema_name>[,<schema_name> ...] ]
 create types [ (in | except in) <schema_name>[,<schema_name> ...] ]
+create functions [[ ( in | except [in] ) ] <schema_name>[,<schema_name> ...]]
+create procedures [[ ( in | except [in] ) ] <schema_name>[,<schema_name> ...]]
 create table <schema_name.table_name>[,<schema_name.table_name> ...]
 create view <schema_name.view_name>[,<schema_name.view_name> ...]
 create type <schema_name.type_name>[,<schema_name.type_name> ...]
+create function <schema_name.function_name>[,<schema_name.function_name> ...]
+create procedure <schema_name.procedure_name>[,<schema_name.procedure_name> ...]
 create constraints on <schema_name.table_name>[,<schema_name.table_name> ...]
 create indexes on <schema_name.table_or_view_name>[,<schema_name.table_or_view_name> ...]
+create triggers [on] <schema_name.table_name>[,<schema_name.table_name> ...]
 ```
 
 `drop` syntax is the same as `create`.
@@ -146,8 +151,8 @@ The following structure is required.
         📄 schema.revoke.<ext>
         📂 tables
           📂 <table_name>
-            📄 table.create.sql
-            📄 table.drop.sql
+            📄 view.create.sql
+            📄 view.drop.sql
             📄 indexes.create.sql
             📄 indexes.drop.sql
             📄 constraints.create.sql

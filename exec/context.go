@@ -13,6 +13,7 @@ type Context struct {
 	inTransaction   bool
 	dbDriver        dbdr.Driver
 	patterns        []string
+	instructions    []*instruction
 	nesting         int
 }
 
@@ -27,6 +28,7 @@ func NewContext(sourceRepo, databaseURL string, autoTx, dryRun bool) *Context {
 		AutoTransaction: autoTx,
 		DryRun:          dryRun,
 		patterns:        []string{},
+		instructions:    []*instruction{},
 		nesting:         0,
 	}
 }
@@ -106,4 +108,20 @@ func (c *Context) getNestingForLogging() string {
 		s += "+"
 	}
 	return s
+}
+
+func (c *Context) resetNesting() {
+	c.nesting = 0
+}
+
+func (c *Context) clearInstructions() {
+	c.instructions = []*instruction{}
+}
+
+func (c *Context) addInstructionWithParams(instrType InstructionType, params map[string]interface{}) {
+	c.instructions = append(c.instructions, &instruction{instrType, params})
+}
+
+func (c *Context) addInstruction(instrType InstructionType) {
+	c.addInstructionWithParams(instrType, make(map[string]interface{}))
 }
