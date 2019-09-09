@@ -62,9 +62,9 @@ the recommended order of operations is:
 create database
 create roles
 create foreign-keys
+create extensions
 create schemas
 create schema <schema_name>[,<schema_name> ...]
-create extensions [ (in | except in) <schema_name>[,<schema_name> ...] ]
 create tables [ (in | except in) <schema_name>[,<schema_name> ...] ]
 create views [ (in | except in) <schema_name>[,<schema_name> ...] ]
 create types [ (in | except in) <schema_name>[,<schema_name> ...] ]
@@ -137,14 +137,14 @@ The following structure is required.
     📄 database.drop.<ext>
     📄 database.grank.<ext> 
     📄 database.revoke.<ext>
+    📄 extensions.create.<ext>
+    📄 extensions.drop.<ext>
     📄 foreign_keys.create.<ext>  
     📄 foreign_keys.drop.<ext>
     📄 roles.create.<ext>
     📄 roles.drop.<ext>
     📂 schemas
       📂 <schema_name>
-        📄 extensions.create.<ext>
-        📄 extensions.drop.<ext>
         📄 schema.create.<ext>
         📄 schema.drop.<ext>
         📄 schema.grant.<ext>
@@ -159,6 +159,8 @@ The following structure is required.
             📄 constraints.drop.sql
             📄 privileges.grant.sql
             📄 privileges.revoke.sql
+            📄 triggers.create.sql
+            📄 triggers.drop.sql
             📂 seeds
               📄 table.csv
               📄 <seed_name>.sql
@@ -172,6 +174,18 @@ The following structure is required.
             📄 indexes.drop.sql
             📄 constraints.create.sql
             📄 constraints.drop.sql
+            📄 privileges.grant.sql
+            📄 privileges.revoke.sql
+        📂 functions
+          📂 <function_name>
+            📄 function.create.sql
+            📄 function.drop.sql
+            📄 privileges.grant.sql
+            📄 privileges.revoke.sql
+        📂 procedures
+          📂 <procedure_name>
+            📄 procedure.create.sql
+            📄 procedure.drop.sql
             📄 privileges.grant.sql
             📄 privileges.revoke.sql
         📂 types

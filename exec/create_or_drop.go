@@ -14,7 +14,7 @@ func (p *preprocessor) preprocessCreateOrDrop() (int, error) {
 	case SCHEMAS:
 		return p.preprocessSchemas()
 	case EXTENSIONS:
-		return p.preprocessExtensions()
+		return p.preprocessTopLevel(EXTENSIONS)
 	case FOREIGN_KEYS:
 		return p.preprocessTopLevel(FOREIGN_KEYS)
 	case ROLES:
@@ -399,33 +399,6 @@ func (p *preprocessor) preprocessSchemaItem(itemType string) (int, error) {
 			}
 		}
 	}
-	return count, nil
-}
-
-func (p *preprocessor) preprocessExtensions() (int, error) {
-	var schemaNames []string
-	var err error
-	switch p.command.Clause {
-	case "in":
-		schemaNames, err = p.getSchemaNames(p.command.ExtArgs, nil)
-	case "except in":
-		schemaNames, err = p.getSchemaNames(nil, p.command.ExtArgs)
-	default:
-		schemaNames, err = p.getSchemaNames(nil, nil)
-	}
-	if err != nil {
-		return 0, err
-	}
-
-	count := 0
-	for _, schemaName := range schemaNames {
-		c, err := p.preprocessCreateOrDropKey(EXTENSIONS, schemaName)
-		count += c
-		if err != nil {
-			return count, err
-		}
-	}
-
 	return count, nil
 }
 
