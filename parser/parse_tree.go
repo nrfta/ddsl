@@ -22,11 +22,6 @@ var commandSpec = `ddsl,Top level command,primary
     schema,Create or drop one or more schemas,primary
       -include_schemas,Comma-delimited list of schemas
     extensions,Create or drop all extensions in one or more schemas,primary
-      in,Comma delimited list of schemas,optional
-        -include_schemas,Comma-delimited list of schemas
-      except,Comma-delimited list of schemas to exclude,optional
-        in,Comma delimited list of schemas
-          -exclude_schemas,Comma-delimited list of schemas
     tables,Create or drop all tables in one or more schemas,primary
       in,Comma delimited list of schemas,optional
         -include_schemas,Comma-delimited list of schemas

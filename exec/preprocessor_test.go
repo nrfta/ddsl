@@ -32,6 +32,7 @@ func init() {
 		{"create database", []*instruction{{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("database.create.sql")}}}},
 		{"create roles", []*instruction{{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("roles.create.sql")}}}},
 		{"create foreign-keys", []*instruction{{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("foreign_keys.create.sql")}}}},
+		{"create extensions", []*instruction{{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("extensions.create.sql")}},}},
 		{"create schemas", []*instruction{
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/schema.create.sql")}},
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/baz_schema/schema.create.sql")}},
@@ -50,22 +51,6 @@ func init() {
 		{"create schema foo_schema,bar_schema", []*instruction{
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/schema.create.sql")}},
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/schema.create.sql")}},
-		}},
-		{"create extensions", []*instruction{
-			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/extensions.create.sql")}},
-			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/baz_schema/extensions.create.sql")}},
-			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/extensions.create.sql")}},
-		}},
-		{"create extensions in foo_schema", []*instruction{
-			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/extensions.create.sql")}},
-		}},
-		{"create extensions in foo_schema,bar_schema", []*instruction{
-			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/extensions.create.sql")}},
-			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/extensions.create.sql")}},
-		}},
-		{"create extensions except in baz_schema", []*instruction{
-			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/extensions.create.sql")}},
-			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/extensions.create.sql")}},
 		}},
 		{"create tables", []*instruction{
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/bar_table/table.create.sql")}},
