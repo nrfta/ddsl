@@ -105,8 +105,12 @@ grant [privileges] on schemas [except <schema_name>[,<schema_name> ...] ]
 grant [privileges] on schema <schema_name>[,<schema_name> ...]
 grant [privileges] on tables [except <schema_name.table_name>[,<schema_name.table_name> ...] ]
 grant [privileges] on views [except <schema_name.view_name>[,<schema_name.view_name> ...] ]
+grant [privileges] on functions [except <schema_name.function_name>[,<schema_name.function_name> ...] ]
+grant [privileges] on procedures [except <schema_name.procedure_name>[,<schema_name.procedure_name> ...] ]
 grant [privileges] on table <schema_name.table_name>[,<schema_name.table_name> ...]
 grant [privileges] on view <schema_name.view_name>[,<schema_name.view_name> ...]
+grant [privileges] on function <schema_name.function_name>[,<schema_name.function_name> ...]
+grant [privileges] on procedure <schema_name.procedure_name>[,<schema_name.procedure_name> ...]
 ```
 
 `revoke` syntax is the same as `grant`.
@@ -133,22 +137,22 @@ The following structure is required.
 ```
 📂 <any_parent_path>
   📂 <database_name>
-    📄 database.create.<ext> 
-    📄 database.drop.<ext>
-    📄 database.grank.<ext> 
-    📄 database.revoke.<ext>
-    📄 extensions.create.<ext>
-    📄 extensions.drop.<ext>
-    📄 foreign_keys.create.<ext>  
-    📄 foreign_keys.drop.<ext>
-    📄 roles.create.<ext>
-    📄 roles.drop.<ext>
+    📄 database.create.sql
+    📄 database.drop.sql
+    📄 database.grank.sql 
+    📄 database.revoke.sql
+    📄 extensions.create.sql
+    📄 extensions.drop.sql
+    📄 foreign_keys.create.sql
+    📄 foreign_keys.drop.sql
+    📄 roles.create.sql
+    📄 roles.drop.sql
     📂 schemas
       📂 <schema_name>
-        📄 schema.create.<ext>
-        📄 schema.drop.<ext>
-        📄 schema.grant.<ext>
-        📄 schema.revoke.<ext>
+        📄 schema.create.sql
+        📄 schema.drop.sql
+        📄 schema.grant.sql
+        📄 schema.revoke.sql
         📂 tables
           📂 <table_name>
             📄 view.create.sql
@@ -189,8 +193,8 @@ The following structure is required.
             📄 privileges.grant.sql
             📄 privileges.revoke.sql
         📂 types
-          📄 <type_name>.create.<ext>
-          📄 <type_name>.drop.<ext>
+          📄 <type_name>.create.sql
+          📄 <type_name>.drop.sql
         📂 seeds
           📄 schema.ddsl
           📄 <seed_name>.ddsl
