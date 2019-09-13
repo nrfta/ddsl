@@ -209,7 +209,7 @@ func (p *preprocessor) preprocessSeedTables() (int, error) {
 
 			params := map[string]interface{}{
 				SCHEMA_NAME: schemaName,
-				TABLE_NAME: tableName,
+				TABLE_NAME:  tableName,
 			}
 
 			c, err := p.preprocessSeedPath(dir, params, schemaName, tableName)
@@ -305,30 +305,30 @@ func (p *preprocessor) preprocessSeedPath(pathPattern string, paramsMap map[stri
 	count := 0
 
 	for _, dir := range dirs {
-		readers, err := p.sourceDriver.ReadFiles(dir, filePattern)
+		filePaths, err := p.sourceDriver.ReadFiles(dir, filePattern)
 		if err != nil {
 			return 0, err
 		}
 
-		for _, fr := range readers {
-			ext := path.Ext(fr.FilePath)
+		for _, filePath := range filePaths {
+			ext := path.Ext(filePath)
 			switch ext {
 			case ".csv":
 				if !strings.Contains(relativePath, "/tables/") {
-					return count, fmt.Errorf("only tables can be seeded with CSV: %s", fr.FilePath)
+					return count, fmt.Errorf("only tables can be seeded with CSV: %s", filePath)
 				}
-				log.Debug("preprocessing CSV seed %s", fr.FilePath)
-				paramsMap[FILE_PATH] = fr.FilePath
+				log.Debug("preprocessing CSV seed %s", filePath)
+				paramsMap[FILE_PATH] = filePath
 				p.ctx.addInstructionWithParams(INSTR_CSV_FILE, paramsMap)
 				count++
 			case ".sql": // TODO ".sh", ".ddsl":
-				log.Debug("preprocessing SQL seed %s", fr.FilePath)
-				paramsMap[FILE_PATH] = fr.FilePath
+				log.Debug("preprocessing SQL seed %s", filePath)
+				paramsMap[FILE_PATH] = filePath
 				p.ctx.addInstructionWithParams(INSTR_SQL_FILE, paramsMap)
 				count++
 			case ".ddsl":
-				log.Debug("preprocessing DDSL seed %s", fr.FilePath)
-				commandBytes, err := ioutil.ReadFile(fr.FilePath)
+				log.Debug("preprocessing DDSL seed %s", filePath)
+				commandBytes, err := ioutil.ReadFile(filePath)
 				if err != nil {
 					return count, err
 				}
@@ -339,7 +339,7 @@ func (p *preprocessor) preprocessSeedPath(pathPattern string, paramsMap map[stri
 					return count, err
 				}
 				p.ctx.pushNesting()
-				p.ctx.addInstructionWithParams(INSTR_DDSL_FILE, map[string]interface{}{FILE_PATH: fr.FilePath})
+				p.ctx.addInstructionWithParams(INSTR_DDSL_FILE, map[string]interface{}{FILE_PATH: filePath})
 
 				c, err := preprocessBatch(p.ctx, cmds)
 
@@ -351,7 +351,7 @@ func (p *preprocessor) preprocessSeedPath(pathPattern string, paramsMap map[stri
 					return count, err
 				}
 			default:
-				return count, fmt.Errorf("unsupported file %s", fr.FilePath)
+				return count, fmt.Errorf("unsupported file %s", filePath)
 			}
 		}
 	}
@@ -385,17 +385,6 @@ func (p *preprocessor) seedFromShellCommand() (int, error) {
 	return 1, nil
 }
 
-func getOutAndErr(out, e []uint8) string {
-	s := ""
-	if len(out) > 0 {
-		s = string(out)
-	}
-	if len(e) > 0 {
-		s += string(e)
-	}
-	return s
-}
-
 func (p *preprocessor) getSeedNames(relativeFilePathPattern string, with, without []string) ([]string, error) {
 	if err := p.ensureSourceDriverOpen(); err != nil {
 		return nil, err
@@ -409,12 +398,12 @@ func (p *preprocessor) getSeedNames(relativeFilePathPattern string, with, withou
 
 	seedNames := []string{}
 	for _, d := range dirs {
-		frs, err := p.sourceDriver.ReadFiles(d, filePattern)
+		filePaths, err := p.sourceDriver.ReadFiles(d, filePattern)
 		if err != nil {
 			return nil, err
 		}
 
-		namedSeed := with != nil || without !=nil
+		namedSeed := with != nil || without != nil
 
 		if with == nil {
 			with = []string{}
@@ -423,9 +412,9 @@ func (p *preprocessor) getSeedNames(relativeFilePathPattern string, with, withou
 			without = []string{}
 		}
 
-		for _, fr := range frs {
-			i := strings.Index(path.Base(fr.FilePath), ".")
-			seedName := path.Base(fr.FilePath)[:i]
+		for _, filePath := range filePaths {
+			i := strings.Index(path.Base(filePath), ".")
+			seedName := path.Base(filePath)[:i]
 			if sliceutil.Contains(seedNames, seedName) {
 				continue
 			}

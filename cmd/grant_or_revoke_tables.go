@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
@@ -18,8 +17,5 @@ Examples:
   grant on tables except this_schema.this_table;
   revoke on tables;
   revoke privileges on tables except that_schema.that_table,other_schema.other_table`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("grantTables called")
-	},
+	Run: runGrantOrRevokeCommand,
 }
-

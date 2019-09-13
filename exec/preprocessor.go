@@ -13,34 +13,44 @@ import (
 
 const (
 	// DDSL keywords
-	CREATE       string = "create"
-	DROP         string = "drop"
-	MIGRATE      string = "migrate"
-	SEED         string = "seed"
-	SQL          string = "sql"
-	GRANT        string = "grant"
-	REVOKE       string = "revoke"
-	DATABASE     string = "database"
-	EXTENSIONS   string = "extensions"
-	ROLES        string = "roles"
-	SCHEMAS      string = "schemas"
-	FOREIGN_KEYS string = "foreign-keys"
-	SCHEMA       string = "schema"
-	TABLES       string = "tables"
-	VIEWS        string = "views"
-	FUNCTIONS    string = "functions"
-	PROCEDURES   string = "procedures"
-	TABLE        string = "table"
-	VIEW         string = "view"
-	FUNCTION     string = "function"
-	PROCEDURE    string = "procedure"
-	INDEXES      string = "indexes"
-	CONSTRAINTS  string = "constraints"
-	PRIVILEGES   string = "privileges"
-	TRIGGERS     string = "triggers"
-	TYPE         string = "type"
-	TYPES        string = "types"
-	CMD          string = "cmd"
+	CREATE           string = "create"
+	DROP             string = "drop"
+	MIGRATE          string = "migrate"
+	SEED             string = "seed"
+	SQL              string = "sql"
+	GRANT            string = "grant"
+	REVOKE           string = "revoke"
+	DATABASE         string = "database"
+	DATABASE_PRIVS   string = "database-privs"
+	EXTENSIONS       string = "extensions"
+	ROLES            string = "roles"
+	SCHEMAS          string = "schemas"
+	FOREIGN_KEYS     string = "foreign-keys"
+	SCHEMA           string = "schema"
+	SCHEMA_PRIVS     string = "schema-privs"
+	TABLES           string = "tables"
+	TABLES_PRIVS     string = "tables-privs"
+	VIEWS            string = "views"
+	VIEWS_PRIVS      string = "views-privs"
+	FUNCTIONS        string = "functions"
+	FUNCTIONS_PRIVS  string = "functions-privs"
+	PROCEDURES       string = "procedures"
+	PROCEDURES_PRIVS string = "procedures-privs"
+	TABLE            string = "table"
+	TABLE_PRIVS      string = "table-privs"
+	VIEW             string = "view"
+	VIEW_PRIVS       string = "view-privs"
+	FUNCTION         string = "function"
+	FUNCTION_PRIVS   string = "function-privs"
+	PROCEDURE        string = "procedure"
+	PROCEDURE_PRIVS  string = "procedure-privs"
+	INDEXES          string = "indexes"
+	CONSTRAINTS      string = "constraints"
+	PRIVILEGES       string = "privileges"
+	TRIGGERS         string = "triggers"
+	TYPE             string = "type"
+	TYPES            string = "types"
+	CMD              string = "cmd"
 
 	// param keys
 	FILE_PATH   string = "file_path"
@@ -52,24 +62,36 @@ const (
 )
 
 var pathPatterns = map[string]string{
-	DATABASE:     `database\.%s\.sql`,
-	ROLES:        `roles\.%s\.sql`,
-	SCHEMAS:      `scheams\.*`,
-	FOREIGN_KEYS: `foreign_keys\.%s\.sql`,
-	EXTENSIONS:   `extensions\.%s\.sql`,
-	SCHEMA:       `schemas/%s/schema\.%s\.sql`,
-	TABLES:       `schemas/%s/tables/?/table\.%s\.sql`,
-	VIEWS:        `schemas/%s/views/?/view\.%s\.sql`,
-	FUNCTIONS:    `schemas/%s/functions/?/function\.%s\.sql`,
-	PROCEDURES:   `schemas/%s/procedures/?/procedure\.%s\.sql`,
-	TYPES:        `schemas/%s/types/.*\.%s\.sql`,
-	TABLE:        `schemas/%s/tables/%s/table\.%s\.sql`,
-	VIEW:         `schemas/%s/views/%s/view\.%s\.sql`,
-	INDEXES:      `schemas/%s/?/%s/indexes\.%s\.sql`,
-	CONSTRAINTS:  `schemas/%s/tables/%s/constraints\.%s\.sql`,
-	PRIVILEGES:   `schemas/%s/?/%s/privileges\.%s\.sql`,
-	TRIGGERS:     `schemas/%s/tables/%s/triggers\.%s\.sql`,
-	TYPE:         `schemas/%s/types/%s\.%s\.sql`,
+	DATABASE:         `database\.%s\.sql`,
+	DATABASE_PRIVS:   `privileges\.%s\.sql`,
+	ROLES:            `roles\.%s\.sql`,
+	SCHEMAS:          `scheams\.*`,
+	FOREIGN_KEYS:     `foreign_keys\.%s\.sql`,
+	EXTENSIONS:       `extensions\.%s\.sql`,
+	SCHEMA:           `schemas/%s/schema\.%s\.sql`,
+	SCHEMA_PRIVS:     `schemas/%s/privileges\.%s\.sql`,
+	TABLES:           `schemas/%s/tables/?/table\.%s\.sql`,
+	TABLES_PRIVS:     `schemas/%s/tables/?/privileges\.%s\.sql`,
+	VIEWS:            `schemas/%s/views/?/view\.%s\.sql`,
+	VIEWS_PRIVS:      `schemas/%s/views/?/privileges\.%s\.sql`,
+	FUNCTIONS:        `schemas/%s/functions/?/function\.%s\.sql`,
+	FUNCTIONS_PRIVS:  `schemas/%s/functions/?/privileges\.%s\.sql`,
+	PROCEDURES:       `schemas/%s/procedures/?/procedure\.%s\.sql`,
+	PROCEDURES_PRIVS: `schemas/%s/procedures/?/privileges\.%s\.sql`,
+	TYPES:            `schemas/%s/types/.*\.%s\.sql`,
+	TABLE:            `schemas/%s/tables/%s/table\.%s\.sql`,
+	TABLE_PRIVS:      `schemas/%s/tables/%s/privileges\.%s\.sql`,
+	VIEW:             `schemas/%s/views/%s/view\.%s\.sql`,
+	VIEW_PRIVS:       `schemas/%s/views/%s/privileges\.%s\.sql`,
+	FUNCTION:         `schemas/%s/functions/%s/function\.%s\.sql`,
+	FUNCTION_PRIVS:   `schemas/%s/functions/%s/privileges\.%s\.sql`,
+	PROCEDURE:        `schemas/%s/procedures/%s/procedure\.%s\.sql`,
+	PROCEDURE_PRIVS:  `schemas/%s/procedures/%s/privileges\.%s\.sql`,
+	INDEXES:          `schemas/%s/?/%s/indexes\.%s\.sql`,
+	CONSTRAINTS:      `schemas/%s/tables/%s/constraints\.%s\.sql`,
+	PRIVILEGES:       `schemas/%s/?/%s/privileges\.%s\.sql`,
+	TRIGGERS:         `schemas/%s/tables/%s/triggers\.%s\.sql`,
+	TYPE:             `schemas/%s/types/%s\.%s\.sql`,
 }
 
 type preprocessor struct {
@@ -204,8 +226,10 @@ func (p *preprocessor) preprocess() (int, error) {
 		count, err = p.preprocessCreateOrDrop()
 	case GRANT:
 		p.grantOrRevoke = GRANT
+		count, err = p.preprocessGrantOrRevoke()
 	case REVOKE:
 		p.grantOrRevoke = REVOKE
+		count, err = p.preprocessGrantOrRevoke()
 	case SEED:
 		count, err = p.preprocessSeed()
 	//case MIGRATE:
@@ -256,16 +280,16 @@ func (p *preprocessor) makeFileInstructions(pathPattern string) (int, error) {
 	for _, d := range dirs {
 		p.ctx.addPattern(path.Join(d, filePattern))
 
-		readers, err := p.sourceDriver.ReadFiles(d, filePattern)
+		filePaths, err := p.sourceDriver.ReadFiles(d, filePattern)
 		if err != nil {
 			return 0, err
 		}
 
-		count += len(readers)
+		count += len(filePaths)
 
-		for _, fr := range readers {
-			log.Debug("preprocessing %s", fr.FilePath)
-			p.ctx.addInstructionWithParams(INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: fr.FilePath})
+		for _, filePath := range filePaths {
+			log.Debug("preprocessing %s", filePath)
+			p.ctx.addInstructionWithParams(INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath})
 		}
 	}
 	return count, nil
@@ -378,4 +402,155 @@ func (p *preprocessor) ensureSourceDriverOpen() error {
 	p.sourceDriver = sourceDriver
 
 	return nil
+}
+
+func (p *preprocessor) preprocessKey(patternKey string, params ...interface{}) (int, error) {
+	switch {
+	case len(p.createOrDrop) > 0:
+		return p.preprocessCreateOrDropKey(patternKey, params...)
+	case len(p.grantOrRevoke) > 0:
+		return p.preprocessGrantOrRevokeKey(patternKey, params...)
+	default:
+		panic("can only be used with create, drop, grant, and revoke")
+	}
+}
+
+func (p *preprocessor) preprocessSchemas(itemType string) (int, error) {
+	count := 0
+
+	var schemaNames []string
+	var err error
+	switch p.command.Clause {
+	case "except":
+		schemaNames, err = p.getSchemaNames(nil, p.command.ExtArgs)
+	default:
+		schemaNames, err = p.getSchemaNames(nil, nil)
+	}
+	if err != nil {
+		return count, err
+	}
+
+	for _, schemaName := range schemaNames {
+		c, err := p.preprocessKey(itemType, schemaName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
+}
+
+func (p *preprocessor) preprocessSchema(itemType string) (int, error) {
+	count := 0
+
+	for _, schemaName := range p.command.ExtArgs {
+		c, err := p.preprocessKey(itemType, schemaName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
+}
+
+func (p *preprocessor) preprocessSchemaItem(itemType string) (int, error) {
+	count := 0
+
+	if len(p.command.ExtArgs) == 0 {
+		return count, fmt.Errorf("comma-delimited list of %ss must be provided", itemType)
+	}
+
+	for _, n := range p.command.ExtArgs {
+		schemaName, itemName, err := parseSchemaItemName(n)
+		if err != nil {
+			return count, err
+		}
+
+		c, err := p.preprocessKey(itemType, schemaName, itemName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+
+		if p.createOrDrop == DROP {
+			continue
+		}
+
+		if c > 0 && p.createOrDrop == CREATE {
+			// when creating a table, also create its constraints
+			if itemType == TABLE {
+				c, err := p.preprocessCreateOrDropKey(CONSTRAINTS, schemaName, itemName)
+				count += c
+				if err != nil {
+					return count, err
+				}
+			}
+
+			// when creating a table or view, also create its indexes
+			if itemType == TABLE || itemType == VIEW {
+				c, err = p.preprocessCreateOrDropKey(INDEXES, schemaName, itemName)
+				count += c
+				if err != nil {
+					return count, err
+				}
+			}
+
+			// when creating any schema item, also grant its privileges
+			c, err = p.preprocessGrantOrRevokeKey(PRIVILEGES, schemaName, itemName)
+			count += c
+			if err != nil {
+				return count, err
+			}
+		}
+	}
+	return count, nil
+}
+
+func (p *preprocessor) preprocessSchemaItems(itemType string) (int, error) {
+	var schemaNames []string
+	var err error
+	switch p.command.Clause {
+	case "in":
+		schemaNames, err = p.getSchemaNames(p.command.ExtArgs, nil)
+	case "except in":
+		schemaNames, err = p.getSchemaNames(nil, p.command.ExtArgs)
+	default:
+		schemaNames, err = p.getSchemaNames(nil, nil)
+	}
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, schemaName := range schemaNames {
+		c, err := p.preprocessKey(itemType, schemaName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+
+		if c > 0 && p.createOrDrop == CREATE {
+			c, err := p.preprocessIndexesConstraintsAndPrivileges(itemType, schemaName)
+			count += c
+			if err != nil {
+				return count, err
+			}
+		}
+	}
+
+	return count, nil
+}
+
+func parseSchemaItemName(item string) (schemaName string, tableOrViewName string, err error) {
+	if len(item) == 0 {
+		return "", "", fmt.Errorf("empty table or view name provided; check for trailing comma or space after comma in list arg")
+	}
+	nparts := strings.Split(item, ".")
+	if len(nparts) != 2 {
+		return "", "", fmt.Errorf("tables and views must be defined as <schema_name>.<table_or_view_name>")
+	}
+
+	return nparts[0], nparts[1], nil
 }

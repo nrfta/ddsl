@@ -80,7 +80,7 @@ func (f *File) readDirectory(relativeDir string, fileNamePattern string, recursi
 
 	dr := &source.DirectoryReader{
 		DirectoryPath: dirPath,
-		FileReaders: []*source.FileReader{},
+		FileReaders: []string{},
 		SubDirectories: []*source.DirectoryReader{},
 	}
 
@@ -113,22 +113,14 @@ func (f *File) readDirectory(relativeDir string, fileNamePattern string, recursi
 				continue
 			}
 
-			reader, err := os.Open(itemPath)
-			if err != nil {
-				return nil, err
-			}
-			fr := &source.FileReader{
-				FilePath: itemPath,
-				Reader: reader,
-			}
-			dr.FileReaders = append(dr.FileReaders, fr)
+			dr.FileReaders = append(dr.FileReaders, itemPath)
 		}
 	}
 
 	return dr, nil
 }
 
-func (f *File) ReadFiles(relativeDir string, fileNamePattern string) (files []*source.FileReader, err error) {
+func (f *File) ReadFiles(relativeDir string, fileNamePattern string) (files []string, err error) {
 	dr, err := f.readDirectory(relativeDir, fileNamePattern, false)
 	if err != nil {
 		return nil, err

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
@@ -16,8 +15,5 @@ var grantSchemaCmd = &cobra.Command{
 Examples:
   grant privileges on schema this_schema;
   revoke on schema that_scheme,other_schema;`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("grantSchema called")
-	},
+	Run: runGrantOrRevokeCommand,
 }
-
