@@ -223,3 +223,10 @@ func (p *processor) executeDDSL(instr *instruction) error {
 	}
 	return nil
 }
+
+func levelOrDryRun(ctx *Context, level log.LogLevel) log.LogLevel {
+	if ctx.DryRun {
+		return log.LEVEL_DRY_RUN
+	}
+	return level
+}

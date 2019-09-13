@@ -136,9 +136,25 @@ var commandSpec = `ddsl,Top level command,primary
           except,Comma-delimited list of schemas to exclude,optional
             in,Comma delimited list of schemas
               -exclude_schemas,Comma-delimited list of schemas
+        functions,Grant or revoke privileges on all functions in one or more schemas,primary
+          in,Comma delimited list of schemas,optional
+            -include_schemas,Comma-delimited list of schemas
+          except,Comma-delimited list of schemas to exclude,optional
+            in,Comma delimited list of schemas
+              -exclude_schemas,Comma-delimited list of schemas
+        procedures,Grant or revoke privileges on all procedures in one or more schemas,primary
+          in,Comma delimited list of schemas,optional
+            -include_schemas,Comma-delimited list of schemas
+          except,Comma-delimited list of schemas to exclude,optional
+            in,Comma delimited list of schemas
+              -exclude_schemas,Comma-delimited list of schemas
         table,Grant or revoke privileges on one or more tables,primary
           -include_tables,Comma-delimited list of tables
         view,Grant or revoke privileges on one or more views,primary
+          -include_views,Comma-delimited list of views
+        function,Grant or revoke privileges on one or more functions,primary
+          -include_views,Comma-delimited list of views
+        procedure,Grant or revoke privileges on one or more procedures,primary
           -include_views,Comma-delimited list of views
   begin,Begin a transaction,root,primary
     transaction,Begin a transaction,optional

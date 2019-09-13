@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
@@ -16,8 +15,5 @@ var grantViewCmd = &cobra.Command{
 Examples:
   grant privileges on view this_schema.this_view;
   revoke on view that_schema.that_view,other_schema.other_view;`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("grantView called")
-	},
+	Run: runGrantOrRevokeCommand,
 }
-

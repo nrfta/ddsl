@@ -6,7 +6,6 @@ package source
 
 import (
 	"fmt"
-	"io"
 	nurl "net/url"
 	"sync"
 )
@@ -42,7 +41,7 @@ type Driver interface {
 
 	// ReadFiles returns `FileReader` slice for the file at the given relative directory
 	// that match the given pattern. Returns `nil` if relative path does not exist.
-	ReadFiles(relativeDir string, fileNamePattern string) (files []*FileReader, err error)
+	ReadFiles(relativeDir string, fileNamePattern string) (files []string, err error)
 
 	// ReadDirectories returns `DirectoryReader` slice for the directories at the given relative directory
 	// that match the given pattern. Returns `nil` if relative path does not exist.
@@ -54,14 +53,9 @@ type Driver interface {
 	ReadTree(relativeDir string, fileNamePattern string) (tree *DirectoryReader, err error)
 }
 
-type FileReader struct {
-	FilePath string
-	Reader io.ReadCloser
-}
-
 type DirectoryReader struct {
 	DirectoryPath string
-	FileReaders []*FileReader
+	FileReaders []string
 	SubDirectories []*DirectoryReader
 }
 

@@ -145,14 +145,16 @@ The following structure is required.
     📄 extensions.drop.sql
     📄 foreign_keys.create.sql
     📄 foreign_keys.drop.sql
+    📄 privileges.grant.sql
+    📄 privileges.revoke.sql
     📄 roles.create.sql
     📄 roles.drop.sql
     📂 schemas
       📂 <schema_name>
         📄 schema.create.sql
         📄 schema.drop.sql
-        📄 schema.grant.sql
-        📄 schema.revoke.sql
+        📄 privileges.grant.sql
+        📄 privileges.revoke.sql
         📂 tables
           📂 <table_name>
             📄 view.create.sql

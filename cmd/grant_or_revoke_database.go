@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/neighborly/ddsl/parser"
 
 	"github.com/spf13/cobra"
@@ -16,8 +15,6 @@ var grantDatabaseCmd = &cobra.Command{
 Examples:
   grant privileges on database;
   revoke on database;`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("grantOrRevokeDatabase called")
-	},
+	Run: runGrantOrRevokeCommand,
 }
 
