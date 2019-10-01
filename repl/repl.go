@@ -60,8 +60,8 @@ func Run(ctx *exec.Context) (exitCode int, err error) {
 	p := prompt.New(
 		executor,
 		completer,
-		prompt.OptionTitle("ddsl repl"),
-		prompt.OptionPrefix("ddsl> "),
+		prompt.OptionTitle("DDSL repl"),
+		prompt.OptionPrefix("DDSL> "),
 	)
 	p.Run()
 	return 0, nil

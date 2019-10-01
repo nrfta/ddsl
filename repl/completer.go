@@ -15,58 +15,63 @@ type followingSuggestion struct {
 
 
 func completer(d prompt.Document) []prompt.Suggest {
-	command := d.TextBeforeCursor()
-
-	if len(command) == 0 {
-		return suggestFromCommandDefs(parser.ParseTree.CommandDefs)
-	}
-
-	cmd, remainder, _ := parser.TryParse(command)
-	if cmd == nil {
-		return []prompt.Suggest{}
-	}
-
-	if cmd.CommandDef.Name != d.GetWordBeforeCursor() {
-		return []prompt.Suggest{}
-	}
-
-	if len(remainder) == 0 && len(cmd.CommandDef.ArgDefs) == 0 {
-		return []prompt.Suggest{}
-	}
-
-	partial := ""
-	if len(remainder) > 0 {
-		partial = remainder[len(remainder)-1]
-	}
-
-	followingCmds := getFollowingSuggestions(cmd.CommandDef, "")
-	suggestions = []prompt.Suggest{}
-	if len(followingCmds) > 0 {
-		for _, c := range followingCmds {
-			cparts := strings.Split(c.text, ",")
-			suggestions = append(suggestions, prompt.Suggest{ Text: cparts[0], Description: cparts[1]})
-		}
-		if len(partial) > 0 {
-			return prompt.FilterHasPrefix(suggestions, partial, true)
-		}
-	}
-
+	return []prompt.Suggest{}
+	//command := d.TextBeforeCursor()
 	//
-	if len(cmd.CommandDef.ArgDefs) > 0 {
-		suggestedArgs, err := suggestArgs(cmd.RootDef, cmd.CommandDef)
-		if err != nil {
-			return []prompt.Suggest{}
-		}
-		for _, a := range suggestedArgs {
-			suggestions = append(suggestions, prompt.Suggest{Text: a})
-		}
-	}
-
-	if len(partial) > 0 {
-		return prompt.FilterHasPrefix(suggestions, partial, true)
-	}
-
-	return suggestions
+	//if len(command) == 0 {
+	//	return suggestFromCommandDefs(parser.ParseTree.CommandDefs, "")
+	//}
+	//
+	//cmd, remainder, _ := parser.TryParse(command)
+	//var nextWord string
+	//if len(remainder) > 0 {
+	//	nextWord = remainder[0]
+	//}
+	//if cmd == nil {
+	//	return suggestFromCommandDefs(parser.ParseTree.CommandDefs, nextWord)
+	//}
+	//
+	//if cmd.CommandDef.Name != d.GetWordBeforeCursor() {
+	//	return suggestFromCommandDefs(cmd.CommandDef.CommandDefs, nextWord)
+	//}
+	//
+	//if len(remainder) == 0 && len(cmd.CommandDef.ArgDefs) == 0 {
+	//	return []prompt.Suggest{}
+	//}
+	//
+	//partial := ""
+	//if len(remainder) > 0 {
+	//	partial = remainder[len(remainder)-1]
+	//}
+	//
+	//followingCmds := getFollowingSuggestions(cmd.CommandDef, "")
+	//suggestions = []prompt.Suggest{}
+	//if len(followingCmds) > 0 {
+	//	for _, c := range followingCmds {
+	//		cparts := strings.Split(c.text, ",")
+	//		suggestions = append(suggestions, prompt.Suggest{ Text: cparts[0], Description: cparts[1]})
+	//	}
+	//	if len(partial) > 0 {
+	//		return prompt.FilterHasPrefix(suggestions, partial, true)
+	//	}
+	//}
+	//
+	////
+	//if len(cmd.CommandDef.ArgDefs) > 0 {
+	//	suggestedArgs, err := suggestArgs(cmd.RootDef, cmd.CommandDef)
+	//	if err != nil {
+	//		return []prompt.Suggest{}
+	//	}
+	//	for _, a := range suggestedArgs {
+	//		suggestions = append(suggestions, prompt.Suggest{Text: a})
+	//	}
+	//}
+	//
+	//if len(partial) > 0 {
+	//	return prompt.FilterHasPrefix(suggestions, partial, true)
+	//}
+	//
+	//return suggestions
 }
 
 func suggestArgs(rootCmd, nextCmd *parser.CommandDef) ([]string, error) {
@@ -120,16 +125,18 @@ func suggestArgs(rootCmd, nextCmd *parser.CommandDef) ([]string, error) {
 	return result, nil
 }
 
-func suggestFromCommandDefs(commandDefs map[string]*parser.CommandDef) []prompt.Suggest {
+func suggestFromCommandDefs(commandDefs map[string]*parser.CommandDef, startsWith string) []prompt.Suggest {
 	result := []prompt.Suggest{}
 	for _, cmdDef := range commandDefs {
-		result = append(result, prompt.Suggest{
-			Text:        cmdDef.Name,
-			Description: cmdDef.ShortDesc,
-		})
+		if len(startsWith) == 0 || strings.HasPrefix(cmdDef.Name, startsWith) {
+			result = append(result, prompt.Suggest{
+				Text:        cmdDef.Name,
+				Description: cmdDef.ShortDesc,
+			})
+		}
 	}
 
-	sort.Slice(result, func(i,j int) bool { return result[i].Text > result[j].Text })
+	sort.Slice(result, func(i,j int) bool { return result[i].Text < result[j].Text })
 
 	return result
 }

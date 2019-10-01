@@ -112,6 +112,9 @@ func TryParse(command string) (cmd *Command, remainder []string, err error) {
 
 	for i, token := range tokens {
 		next, ok := cmdDefs[strings.ToLower(token)]
+		if i == 0 && !ok {
+			return nil, nil, err
+		}
 		if ok {
 			tokenIndex := i
 			if next.HasExtArgs() {
