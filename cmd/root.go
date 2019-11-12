@@ -66,7 +66,7 @@ omitted from the beginning of each line.
 			exitCode = ec
 
 		default:
-			ec, err := repl.Run(makeExecContext(false))
+			ec, err := repl.Run(makeExecContext(false, false))
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -76,16 +76,18 @@ omitted from the beginning of each line.
 	},
 }
 
-func makeExecContext(autoTx bool) *exec.Context {
+func makeExecContext(autoTx, requireConfig bool) *exec.Context {
 	db := viper.GetString("database")
 	src := viper.GetString("source")
-	if len(db) == 0 {
-		fmt.Println("no database URL provided")
-		os.Exit(1)
-	}
-	if len(src) == 0 {
-		fmt.Println("no source repository provided")
-		os.Exit(1)
+	if requireConfig {
+		if len(db) == 0 {
+			fmt.Println("no database URL provided")
+			os.Exit(1)
+		}
+		if len(src) == 0 {
+			fmt.Println("no source repository provided")
+			os.Exit(1)
+		}
 	}
 	return exec.NewContext(src, db, autoTx, viper.GetBool("dry_run"))
 }

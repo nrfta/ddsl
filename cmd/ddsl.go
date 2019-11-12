@@ -11,7 +11,7 @@ func runCLICommand(command string) (exitCode int, err error) {
 	if err != nil {
 		return 1, err
 	}
-	ctx := makeExecContext(!hasDB)
+	ctx := makeExecContext(!hasDB, true)
 	err = exec.ExecuteBatch(ctx, cmds)
 	if err != nil {
 		return 1, err
@@ -28,7 +28,7 @@ func runFile(file string) (exitCode int, err error) {
 	command := string(commandBytes)
 	cmds, hasTx, hasDB, err := parser.Parse(command)
 
-	ctx := makeExecContext(!hasTx && !hasDB)
+	ctx := makeExecContext(!hasTx && !hasDB, true)
     err = exec.ExecuteBatch(ctx, cmds)
     if err != nil {
     	return 1, err

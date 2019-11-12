@@ -51,6 +51,9 @@ const (
 	TYPE             string = "type"
 	TYPES            string = "types"
 	CMD              string = "cmd"
+	IN               string = "in"
+	ON               string = "on"
+	EXCEPT           string = "except"
 
 	// param keys
 	FILE_PATH   string = "file_path"
