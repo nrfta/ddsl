@@ -81,6 +81,12 @@ var commandSpec = `ddsl,Top level command,primary
     foreign-keys,List foreign keys,primary
     schemas,List all schemas,primary
     extensions,List all extensions in one or more schemas,primary
+    schema-items,List all schema items in one or more schemas,primary
+      in,Comma delimited list of schemas,optional
+        -include_schemas,Comma-delimited list of schemas
+      except,Comma-delimited list of schemas to exclude,optional
+        in,Comma delimited list of schemas
+          -exclude_schemas,Comma-delimited list of schemas
     tables,List all tables in one or more schemas,primary
       in,Comma delimited list of schemas,optional
         -include_schemas,Comma-delimited list of schemas

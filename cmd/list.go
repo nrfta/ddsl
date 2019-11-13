@@ -24,6 +24,7 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 	listCmd.AddCommand(listSchemas)
 	listCmd.AddCommand(listForeignKeys)
+	listCmd.AddCommand(listSchemaItems)
 	listCmd.AddCommand(listTables)
 	listCmd.AddCommand(listViews)
 	listCmd.AddCommand(listFunctions)

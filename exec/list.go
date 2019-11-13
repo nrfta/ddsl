@@ -32,6 +32,8 @@ func (p *preprocessor) preprocessList() (int, error) {
 	case FOREIGN_KEYS:
 		p.makeListInstruction(FOREIGN_KEYS, map[string]interface{}{})
 		return 1, nil
+	case SCHEMA_ITEMS:
+		return p.preprocessListSchemaItems(SCHEMA_ITEMS)
 	case TABLES:
 		return p.preprocessListSchemaItems(TABLES)
 	case VIEWS:
