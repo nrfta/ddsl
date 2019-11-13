@@ -255,6 +255,9 @@ func (p *processor) executeList(instr *instruction) error {
 		}
 		return p.listOutput(header, data)
 
+	case SCHEMA_ITEMS:
+		return p.renderSchemaItemInfos(p.ctx.dbDriver.SchemaItems, instr, "Item")
+
 	case TABLES:
 		return p.renderSchemaItemInfos(p.ctx.dbDriver.Tables, instr, "Table")
 
@@ -286,9 +289,16 @@ func (p *processor) renderSchemaItemInfos(driverFn getSchemaItemsFn, instr *inst
 	}
 
 	header := []string{"Schema Name", itemType + " Name"}
+	if itemType == "Item" {
+		header = append(header, "Item Type")
+	}
 	data := [][]string{}
 	for _, i := range result {
-		data = append(data, []string{i.SchemaName, i.ItemName})
+		item := []string{i.SchemaName, i.ItemName}
+		if itemType == "Item" {
+			item = append(item, i.ItemType)
+		}
+		data = append(data, item)
 	}
 	return p.listOutput(header, data)
 }

@@ -28,6 +28,7 @@ const (
 	SCHEMAS          string = "schemas"
 	FOREIGN_KEYS     string = "foreign-keys"
 	SCHEMA           string = "schema"
+	SCHEMA_ITEMS     string = "schema-items"
 	SCHEMA_PRIVS     string = "schema-privs"
 	TABLES           string = "tables"
 	TABLES_PRIVS     string = "tables-privs"
