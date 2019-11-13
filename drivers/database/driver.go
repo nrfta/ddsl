@@ -12,13 +12,59 @@ import (
 	"sync"
 )
 
+const (
+	SchemaItemTypeTable     = "TABLE"
+	SchemaItemTypeView      = "VIEW"
+	SchemaItemTypeFunction  = "FUNCTION"
+	SchemaItemTypeProcedure = "PROCEDURE"
+	SchemaItemTypeType      = "TYPE"
+	SQLQuerySchemas         = "SELECT schema_name FROM information_schema.schemata;"
+	SQLQueryTables          = `
+		SELECT 'TABLE' AS item_type, table_schema AS schema_name, table_name AS item_name FROM information_schema.tables 
+		WHERE table_schema = '%s' AND table_type IN ('TABLE', 'BASE TABLE')
+	`
+	SQLQueryViews = `
+		SELECT 'VIEW' AS item_type, table_schema AS schema_name, table_name AS item_name FROM information_schema.tables 
+		WHERE table_schema = '%s' AND table_type = 'VIEW'
+	`
+	SQLQueryFunctions = `
+		SELECT 'FUNCTION' AS item_type, specific_schema AS schema_name, routine_name AS item_name 
+		FROM information_schema.routines
+		WHERE specific_schema = '%s' AND routine_type = 'FUNCTION'
+	`
+	SQLQueryProcedures = `
+		SELECT 'PROCEDURE' AS item_type, specific_schema AS schema_name, routine_name AS item_name 
+		FROM information_schema.routines
+		WHERE specific_schema = '%s' AND routine_type = 'PROCEDURE'
+	`
+	SQLQueryTypes = `
+		SELECT 'TYPE' AS item_type, user_defined_type_schema AS schema_name, user_defined_type_name AS item_name 
+		FROM information_schema.user_defined_types
+		WHERE user_defined_type_schema = '%s'
+	`
+	SQLQueryForeignKeys = `
+		SELECT
+			tc.table_schema AS parent_schema_name, tc.table_name AS parent_item_name, 
+			kcu.column_name AS parent_column_name,
+			ccu.table_schema AS child_schema_name, ccu.table_name AS child_item_name,
+			ccu.column_name AS child_column_name
+		FROM
+			information_schema.table_constraints AS tc
+			JOIN information_schema.key_column_usage 
+				AS kcu ON tc.constraint_name = kcu.constraint_name
+			JOIN information_schema.constraint_column_usage 
+				AS ccu ON ccu.constraint_name = tc.constraint_name
+		WHERE constraint_type = 'FOREIGN KEY';
+	`
+)
+
 var (
 	// ErrLocked should be returned if a lock cannot be required on the database
 	// when requested.
 	ErrLocked = fmt.Errorf("can't acquire lock")
 
 	driversMu sync.RWMutex
-	drivers = make(map[string]Driver)
+	drivers   = make(map[string]Driver)
 )
 
 // Driver is the interface every database driver must implement.
@@ -85,6 +131,56 @@ type Driver interface {
 
 	// DatabaseName returns the name of the database.
 	DatabaseName() string
+
+	// Schemas returns the names of the database schemas.
+	Schemas() ([]string, error)
+
+	// Tables returns the tables in the database schema.
+	Tables(schema string) ([]*SchemaItemInfo, error)
+
+	// Views returns the views in the database schema.
+	Views(schema string) ([]*SchemaItemInfo, error)
+
+	// Functions returns the functions in the database schema.
+	Functions(schema string) ([]*SchemaItemInfo, error)
+
+	// Procedures returns the procedures in the database schema.
+	Procedures(schema string) ([]*SchemaItemInfo, error)
+
+	// Types returns the types in the database schema.
+	Types(schema string) ([]*SchemaItemInfo, error)
+
+	// SchemaItems returns all items in the database schema
+	SchemaItems(schema string) ([]*SchemaItemInfo, error)
+
+	// Extensions returns the names of the database extensions
+	Extensions() ([]string, error)
+
+	// ForeignKeys returns the names of the foreign keys
+	ForeignKeys() ([]*ForeignKeyInfo, error)
+
+	// Roles returns the names of the database roles
+	Roles() ([]string, error)
+}
+
+type SchemaItemInfo struct {
+	// ItemType is one of TABLE, VIEW, FUNCTION, PROCEDURE, TYPE
+	ItemType string
+
+	// SchemaName is the name of the schema
+	SchemaName string
+
+	// ItemName is the name of the schema item
+	ItemName string
+}
+
+type ForeignKeyInfo struct {
+	ParentSchemaName string
+	ParentTableName  string
+	ParentColumnName string
+	ChildSchemaName  string
+	ChildTableName   string
+	ChildColumnName  string
 }
 
 // Open returns a new driver instance.

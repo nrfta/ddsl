@@ -337,6 +337,131 @@ func (p *Postgres) ImportCSV(filePath, schemaName, tableName, delimiter string, 
 	return out, nil
 }
 
+func (p *Postgres) Schemas() ([]string, error) {
+	rows, err := p.Query(strings.NewReader(database.SQLQuerySchemas))
+	if err != nil {
+		return nil, err
+	}
+
+	schemaNames := []string{}
+	for rows.Next() {
+		name := ""
+		err = rows.Scan(&name)
+		if err != nil {
+			return nil, err
+		}
+
+		if name != "pg_catalog" && name != "information_schema" {
+			schemaNames = append(schemaNames, name)
+		}
+	}
+
+	return schemaNames, nil
+}
+
+func (p *Postgres) querySchemaItems(schemaName, query string) ([]*database.SchemaItemInfo, error) {
+	sql := fmt.Sprintf(query, schemaName)
+	rows, err := p.Query(strings.NewReader(sql))
+	if err != nil {
+		return nil, err
+	}
+
+	schemaItems := []*database.SchemaItemInfo{}
+	for rows.Next() {
+		item := &database.SchemaItemInfo{}
+		err = rows.Scan(&item.ItemType, &item.SchemaName, &item.ItemName)
+		if err != nil {
+			return nil, err
+		}
+		schemaItems = append(schemaItems, item)
+	}
+
+	return schemaItems, nil
+}
+
+func (p *Postgres) Tables(schema string) ([]*database.SchemaItemInfo, error) {
+	return p.querySchemaItems(schema, database.SQLQueryTables)
+}
+
+func (p *Postgres) Views(schema string) ([]*database.SchemaItemInfo, error) {
+	return p.querySchemaItems(schema, database.SQLQueryViews)
+}
+
+func (p *Postgres) Functions(schema string) ([]*database.SchemaItemInfo, error) {
+	return p.querySchemaItems(schema, database.SQLQueryFunctions)
+}
+
+func (p *Postgres) Procedures(schema string) ([]*database.SchemaItemInfo, error) {
+	return p.querySchemaItems(schema, database.SQLQueryProcedures)
+}
+
+func (p *Postgres) Types(schema string) ([]*database.SchemaItemInfo, error) {
+	return p.querySchemaItems(schema, database.SQLQueryTypes)
+}
+
+func (p *Postgres) Extensions() ([]string, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (p *Postgres) SchemaItems(schema string) ([]*database.SchemaItemInfo, error) {
+	items := []*database.SchemaItemInfo{}
+
+	tables, err := p.Tables(schema)
+	if err != nil {
+		return nil, err
+	}
+	items = append(items, tables...)
+
+	views, err := p.Views(schema)
+	if err != nil {
+		return nil, err
+	}
+	items = append(items, views...)
+
+	functions, err := p.Functions(schema)
+	if err != nil {
+		return nil, err
+	}
+	items = append(items, functions...)
+
+	procs, err := p.Procedures(schema)
+	if err != nil {
+		return nil, err
+	}
+	items = append(items, procs...)
+
+	types, err := p.Types(schema)
+	if err != nil {
+		return nil, err
+	}
+	items = append(items, types...)
+
+	return items, nil
+}
+
+func (p *Postgres) ForeignKeys() ([]*database.ForeignKeyInfo, error) {
+	rows, err := p.Query(strings.NewReader(database.SQLQueryForeignKeys))
+	if err != nil {
+		return nil, err
+	}
+
+	fkInfo := []*database.ForeignKeyInfo{}
+	for rows.Next() {
+		item := &database.ForeignKeyInfo{}
+		err = rows.Scan(&item.ParentSchemaName, &item.ParentTableName, &item.ParentColumnName, &item.ChildSchemaName, &item.ChildTableName, &item.ChildColumnName)
+		if err != nil {
+			return nil, err
+		}
+		fkInfo = append(fkInfo, item)
+	}
+
+	return fkInfo, nil
+}
+
+func (p *Postgres) Roles() ([]string, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
 func computeLineFromPos(s string, pos int) (line uint, col uint, ok bool) {
 	// replace crlf with lf
 	s = strings.Replace(s, "\r\n", "\n", -1)

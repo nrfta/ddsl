@@ -12,6 +12,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.6 // indirect
 	github.com/mattn/go-shellwords v1.0.6
 	github.com/mattn/go-tty v0.0.0-20191112051231-74040eebce08 // indirect
+	github.com/olekukonko/tablewriter v0.0.2
 	github.com/onsi/ginkgo v1.10.3
 	github.com/onsi/gomega v1.7.1
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 // indirect
