@@ -16,12 +16,6 @@ var appVersion string
 var (
 	version bool
 	file string
-	schemas []string
-	tables []string
-	views []string
-	excludeSchemas []string
-	excludeTables []string
-	excludeViews []string
 )
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -87,7 +81,7 @@ func makeExecContext(autoTx bool) *exec.Context {
 		fmt.Println("no source repository provided")
 		os.Exit(1)
 	}
-	return exec.NewContext(src, db, autoTx, viper.GetBool("dry_run"))
+	return exec.NewContext(src, db, autoTx, viper.GetBool("dry_run"), viper.GetString("format"))
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

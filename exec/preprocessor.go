@@ -20,6 +20,7 @@ const (
 	SQL              string = "sql"
 	GRANT            string = "grant"
 	REVOKE           string = "revoke"
+	LIST             string = "list"
 	DATABASE         string = "database"
 	DATABASE_PRIVS   string = "database-privs"
 	EXTENSIONS       string = "extensions"
@@ -53,12 +54,14 @@ const (
 	CMD              string = "cmd"
 
 	// param keys
-	FILE_PATH   string = "file_path"
-	COMMAND     string = "command"
-	ARGS        string = "args"
-	SCHEMA_NAME string = "schema_name"
-	TABLE_NAME  string = "table_name"
-	SEED_NAME   string = "seed_name"
+	FILE_PATH    string = "file_path"
+	COMMAND      string = "command"
+	ARGS         string = "args"
+	SCHEMA_NAME  string = "schema_name"
+	SCHEMA_NAMES string = "schema_names"
+	TABLE_NAME   string = "table_name"
+	SEED_NAME    string = "seed_name"
+	ITEM_TYPE    string = "item_type"
 )
 
 var pathPatterns = map[string]string{
@@ -117,6 +120,7 @@ const (
 	INSTR_COMMIT
 	INSTR_ROLLBACK
 	INSTR_SQL_SCRIPT
+	INSTR_LIST
 )
 
 type instruction struct {
@@ -236,6 +240,8 @@ func (p *preprocessor) preprocess() (int, error) {
 	//	count, err = p.preprocessMigrate()
 	case SQL:
 		count, err = p.preprocessSql()
+	case LIST:
+		count, err = p.preprocessList()
 	default:
 		return 0, fmt.Errorf("unknown command")
 	}
@@ -293,6 +299,37 @@ func (p *preprocessor) makeFileInstructions(pathPattern string) (int, error) {
 		}
 	}
 	return count, nil
+}
+
+func (p *preprocessor) makeListInstruction(itemType string, params map[string]interface{}) {
+	params[ITEM_TYPE] = itemType
+	p.ctx.addInstructionWithParams(INSTR_LIST, params)
+}
+
+func (p *preprocessor) getSchemaNamesDB(in, except []string) ([]string, error) {
+	if in == nil {
+		in = []string{}
+	}
+	if except == nil {
+		except = []string{}
+	}
+
+	schemaNames, err := p.ctx.dbDriver.Schemas()
+	if err != nil {
+		return nil, err
+	}
+
+	result := []string{}
+	for _, schemaName := range schemaNames {
+		if (len(in) > 0 && sliceutil.Contains(in, schemaName)) ||
+			(len(except) > 0 && !sliceutil.Contains(except, schemaName)) ||
+			(len(in) == 0 && len(except) == 0) {
+			result = append(result, schemaName)
+		}
+	}
+
+	sort.Strings(result)
+	return result, nil
 }
 
 func (p *preprocessor) getSchemaNames(in, except []string) ([]string, error) {
@@ -541,6 +578,26 @@ func (p *preprocessor) preprocessSchemaItems(itemType string) (int, error) {
 	}
 
 	return count, nil
+}
+
+func (p *preprocessor) preprocessListSchemaItems(itemType string) (int, error) {
+	var schemaNames []string
+	var err error
+	switch p.command.Clause {
+	case "in":
+		schemaNames, err = p.getSchemaNamesDB(p.command.ExtArgs, nil)
+	case "except in":
+		schemaNames, err = p.getSchemaNamesDB(nil, p.command.ExtArgs)
+	default:
+		schemaNames, err = p.getSchemaNamesDB(nil, nil)
+	}
+	if err != nil {
+		return 0, err
+	}
+
+	p.makeListInstruction(itemType, map[string]interface{}{SCHEMA_NAMES: schemaNames})
+
+	return 1, nil
 }
 
 func parseSchemaItemName(item string) (schemaName string, tableOrViewName string, err error) {

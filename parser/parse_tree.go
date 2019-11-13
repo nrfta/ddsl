@@ -22,6 +22,11 @@ var commandSpec = `ddsl,Top level command,primary
     schema,Create or drop one or more schemas,primary
       -include_schemas,Comma-delimited list of schemas
     extensions,Create or drop all extensions in one or more schemas,primary
+      in,Comma delimited list of schemas,optional
+        -include_schemas,Comma-delimited list of schemas
+      except,Comma-delimited list of schemas to exclude,optional
+        in,Comma delimited list of schemas
+          -exclude_schemas,Comma-delimited list of schemas
     tables,Create or drop all tables in one or more schemas,primary
       in,Comma delimited list of schemas,optional
         -include_schemas,Comma-delimited list of schemas
@@ -71,6 +76,50 @@ var commandSpec = `ddsl,Top level command,primary
           -exclude_schemas,Comma-delimited list of schemas
     type,Create or drop one or more types,primary
       -include_types,Comma-delimited list of types
+  list,Top level list command,root
+    roles,List roles,primary
+    foreign-keys,List foreign keys,primary
+    schemas,List all schemas,primary
+    extensions,List all extensions in one or more schemas,primary
+    tables,List all tables in one or more schemas,primary
+      in,Comma delimited list of schemas,optional
+        -include_schemas,Comma-delimited list of schemas
+      except,Comma-delimited list of schemas to exclude,optional
+        in,Comma delimited list of schemas
+          -exclude_schemas,Comma-delimited list of schemas
+    views,List all views in one or more schemas,primary
+      in,Comma delimited list of schemas,optional
+        -include_schemas,Comma-delimited list of schemas
+      except,Comma-delimited list of schemas to exclude,optional
+        in,Comma delimited list of schemas
+          -exclude_schemas,Comma-delimited list of schemas
+    functions,List all functions in one or more schemas,primary
+      in,Comma delimited list of schemas,optional
+        -include_schemas,Comma-delimited list of schemas
+      except,Comma-delimited list of schemas to exclude,optional
+        in,Comma delimited list of schemas
+          -exclude_schemas,Comma-delimited list of schemas
+    procedures,List all procedures in one or more schemas,primary
+      in,Comma delimited list of schemas,optional
+        -include_schemas,Comma-delimited list of schemas
+      except,Comma-delimited list of schemas to exclude,optional
+        in,Comma delimited list of schemas
+          -exclude_schemas,Comma-delimited list of schemas
+    indexes,List all indexes on one or more tables or views,primary
+      on,Comma delimited list of tables and views
+        -include_tables_and_views,Comma-delimited list of tables and views
+    constraints,List all constraints on one or more tables,primary
+      on,Comma delimited list of tables
+        -include_tables,Comma-delimited list of tables
+    triggers,List all triggers on one or more tables,primary
+      on,Comma delimited list of tables
+        -include_tables,Comma-delimited list of tables
+    types,List all types in one or more schemas,primary
+      in,List types,optional
+        -include_schemas,Comma-delimited list of schemas
+      except,Comma-delimited list of schemas to exclude,optional
+        in,Comma delimited list of schemas
+          -exclude_schemas,Comma-delimited list of schemas
   migrate,Top level migrate command,root
     up,Migrate the database up in version,primary
       -number_of_versions,Number of versions to migrate

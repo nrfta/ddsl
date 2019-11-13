@@ -13,6 +13,8 @@ type processor struct {
 	ctx *Context
 }
 
+type getSchemaItemsFn func(string) ([]*dbdr.SchemaItemInfo, error)
+
 func (p *processor) process() error {
 	dbDriver, err := dbdr.Open(p.ctx.DatbaseUrl)
 	if err != nil {
@@ -27,7 +29,7 @@ func (p *processor) process() error {
 		return err
 	}
 
-	if p.ctx.AutoTransaction {
+	if p.ctx.AutoTransaction && p.ctx.nonList {
 		if err = p.beginTransaction(); err != nil {
 			return err
 		}
@@ -69,6 +71,8 @@ func (p *processor) processInstructions() error {
 			err = p.executeShellScript(instr)
 		case INSTR_DDSL:
 			err = p.executeDDSL(instr)
+		case INSTR_LIST:
+			err = p.executeList(instr)
 		case INSTR_DDSL_FILE:
 			log.Log(levelOrDryRun(p.ctx, log.LEVEL_INFO), "executing DDSL file %s", instr.params[FILE_PATH].(string))
 		case INSTR_DDSL_FILE_END:
@@ -224,7 +228,75 @@ func (p *processor) executeDDSL(instr *instruction) error {
 	return nil
 }
 
+func (p *processor) executeList(instr *instruction) error {
+	itemType := instr.params[ITEM_TYPE].(string)
+	switch itemType {
+	case SCHEMAS:
+		schemaNames, err := p.ctx.dbDriver.Schemas()
+		if err != nil {
+			return err
+		}
+		data := [][]string{}
+		for _, schemaName := range schemaNames {
+			data = append(data, []string{schemaName})
+		}
+		p.listOutput([]string{"Schema Name"}, data)
+		return nil
+
+	case FOREIGN_KEYS:
+		fks, err := p.ctx.dbDriver.ForeignKeys()
+		if err != nil {
+			return err
+		}
+		header := []string{"Parent Table", "Parent Column Name", "Child Table", "Child Column Name"}
+		data := [][]string{}
+		for _, fk := range fks {
+			data = append(data, []string{fk.ParentSchemaName + "." + fk.ParentTableName, fk.ParentColumnName, fk.ChildSchemaName + "." + fk.ChildTableName, fk.ChildColumnName})
+		}
+		return p.listOutput(header, data)
+
+	case TABLES:
+		return p.renderSchemaItemInfos(p.ctx.dbDriver.Tables, instr, "Table")
+
+	case VIEWS:
+		return p.renderSchemaItemInfos(p.ctx.dbDriver.Views, instr, "View")
+
+	case FUNCTIONS:
+		return p.renderSchemaItemInfos(p.ctx.dbDriver.Functions, instr, "Function")
+
+	case PROCEDURES:
+		return p.renderSchemaItemInfos(p.ctx.dbDriver.Procedures, instr, "Procedure")
+
+	case TYPES:
+		return p.renderSchemaItemInfos(p.ctx.dbDriver.Types, instr, "Type")
+	}
+
+	return fmt.Errorf("unknown item type '%s'", itemType)
+}
+
+func (p *processor) renderSchemaItemInfos(driverFn getSchemaItemsFn, instr *instruction, itemType string) (error) {
+	schemaNames := instr.params[SCHEMA_NAMES].([]string)
+	result := []*dbdr.SchemaItemInfo{}
+	for _, name := range schemaNames {
+		infos, err := driverFn(name)
+		if err != nil {
+			return err
+		}
+		result = append(result, infos...)
+	}
+
+	header := []string{"Schema Name", itemType + " Name"}
+	data := [][]string{}
+	for _, i := range result {
+		data = append(data, []string{i.SchemaName, i.ItemName})
+	}
+	return p.listOutput(header, data)
+}
+
 func levelOrDryRun(ctx *Context, level log.LogLevel) log.LogLevel {
+	if ctx.isListCommand() {
+		return log.LEVEL_DEBUG
+	}
 	if ctx.DryRun {
 		return log.LEVEL_DRY_RUN
 	}

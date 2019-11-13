@@ -10,23 +10,26 @@ type Context struct {
 	DatbaseUrl      string
 	AutoTransaction bool
 	DryRun          bool
+	OutputFormat    string
 	inTransaction   bool
 	dbDriver        dbdr.Driver
 	patterns        []string
 	instructions    []*instruction
 	nesting         int
+	nonList         bool
 }
 
 type Name struct {
 	Name *string
 }
 
-func NewContext(sourceRepo, databaseURL string, autoTx, dryRun bool) *Context {
+func NewContext(sourceRepo, databaseURL string, autoTx, dryRun bool, output_format string) *Context {
 	return &Context{
 		SourceRepo:      sourceRepo,
 		DatbaseUrl:      databaseURL,
 		AutoTransaction: autoTx,
 		DryRun:          dryRun,
+		OutputFormat:    output_format,
 		patterns:        []string{},
 		instructions:    []*instruction{},
 		nesting:         0,
@@ -120,8 +123,15 @@ func (c *Context) clearInstructions() {
 
 func (c *Context) addInstructionWithParams(instrType InstructionType, params map[string]interface{}) {
 	c.instructions = append(c.instructions, &instruction{instrType, params})
+	if instrType != INSTR_LIST && instrType != INSTR_DDSL {
+		c.nonList = true
+	}
 }
 
 func (c *Context) addInstruction(instrType InstructionType) {
 	c.addInstructionWithParams(instrType, make(map[string]interface{}))
+}
+
+func (c *Context) isListCommand() bool {
+	return !c.nonList
 }
