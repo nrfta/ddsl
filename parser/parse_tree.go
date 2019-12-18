@@ -15,12 +15,19 @@ var commandSpec = `ddsl,Top level command,primary
   create,Top level create command,root
     database,Create or drop the database,primary
     roles,Create or drop roles,primary
-    foreign-keys,Create or drop foreign keys,primary
     schemas,Create or drop all schemas,primary
       except,Comma-delimited list of schemas to exclude,optional
         -exclude_schemas,Comma-delimited list of schemas to exclude
     schema,Create or drop one or more schemas,primary
       -include_schemas,Comma-delimited list of schemas
+    foreign-keys,Create or drop foreign keys,primary
+      in,Comma delimited list of schemas,optional
+        -include_schemas,Comma-delimited list of schemas
+      except,Comma-delimited list of schemas to exclude,optional
+        in,Comma delimited list of schemas
+          -exclude_schemas,Comma-delimited list of schemas
+      on,Comma delimited list of tables,optional
+        -include_tables,Comma-delimited list of tables
     extensions,Create or drop all extensions in one or more schemas,primary
       in,Comma delimited list of schemas,optional
         -include_schemas,Comma-delimited list of schemas
@@ -78,10 +85,15 @@ var commandSpec = `ddsl,Top level command,primary
       -include_types,Comma-delimited list of types
   list,Top level list command,root
     roles,List roles,primary
-    foreign-keys,List foreign keys,primary
     schemas,List all schemas,primary
     extensions,List all extensions in one or more schemas,primary
     schema-items,List all schema items in one or more schemas,primary
+      in,Comma delimited list of schemas,optional
+        -include_schemas,Comma-delimited list of schemas
+      except,Comma-delimited list of schemas to exclude,optional
+        in,Comma delimited list of schemas
+          -exclude_schemas,Comma-delimited list of schemas
+    foreign-keys,List foreign keys,primary
       in,Comma delimited list of schemas,optional
         -include_schemas,Comma-delimited list of schemas
       except,Comma-delimited list of schemas to exclude,optional

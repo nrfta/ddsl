@@ -31,7 +31,6 @@ func init() {
 	posTests = []ppTestSpec{
 		{"create database", []*instruction{{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("database.create.sql")}}}},
 		{"create roles", []*instruction{{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("roles.create.sql")}}}},
-		{"create foreign-keys", []*instruction{{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("foreign_keys.create.sql")}}}},
 		{"create extensions", []*instruction{{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("extensions.create.sql")}},}},
 		{"create schemas", []*instruction{
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/schema.create.sql")}},
@@ -51,6 +50,45 @@ func init() {
 		{"create schema foo_schema,bar_schema", []*instruction{
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/schema.create.sql")}},
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/schema.create.sql")}},
+		}},
+		{"create foreign-keys", []*instruction{
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/foo_table/foreign-keys.create.sql")}},
+
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/baz_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/baz_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/baz_schema/tables/foo_table/foreign-keys.create.sql")}},
+
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/foreign-keys.create.sql")}},
+		}},
+		{"create foreign-keys in foo_schema", []*instruction{
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/foreign-keys.create.sql")}},
+		}},
+		{"create foreign-keys in foo_schema,bar_schema", []*instruction{
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/foo_table/foreign-keys.create.sql")}},
+
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/foreign-keys.create.sql")}},
+		}},
+		{"create foreign-keys except in bar_schema,baz_schema", []*instruction{
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/foreign-keys.create.sql")}},
+		}},
+		{"create foreign-keys on foo_schema.foo_table", []*instruction{
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/foreign-keys.create.sql")}},
+		}},
+		{"create foreign-keys on foo_schema.foo_table,foo_schema.bar_table", []*instruction{
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/bar_table/foreign-keys.create.sql")}},
 		}},
 		{"create tables", []*instruction{
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/bar_table/table.create.sql")}},
@@ -91,6 +129,18 @@ func init() {
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/constraints.create.sql")}},
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/indexes.create.sql")}},
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/privileges.grant.sql")}},
+
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/foo_table/foreign-keys.create.sql")}},
+
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/baz_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/baz_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/baz_schema/tables/foo_table/foreign-keys.create.sql")}},
+
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/foreign-keys.create.sql")}},
 		}},
 		{"create tables in foo_schema", []*instruction{
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/bar_table/table.create.sql")}},
@@ -105,6 +155,9 @@ func init() {
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/constraints.create.sql")}},
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/indexes.create.sql")}},
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/privileges.grant.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/foreign-keys.create.sql")}},
 		}},
 		{"create tables in foo_schema,bar_schema", []*instruction{
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/bar_table/table.create.sql")}},
@@ -132,6 +185,14 @@ func init() {
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/constraints.create.sql")}},
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/indexes.create.sql")}},
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/privileges.grant.sql")}},
+
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/tables/foo_table/foreign-keys.create.sql")}},
+
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/foreign-keys.create.sql")}},
 		}},
 		{"create tables except in bar_schema,baz_schema", []*instruction{
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/bar_table/table.create.sql")}},
@@ -146,6 +207,10 @@ func init() {
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/constraints.create.sql")}},
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/indexes.create.sql")}},
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/privileges.grant.sql")}},
+
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/bar_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/baz_table/foreign-keys.create.sql")}},
+			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/foo_schema/tables/foo_table/foreign-keys.create.sql")}},
 		}},
 		{"create views", []*instruction{
 			{INSTR_SQL_FILE, map[string]interface{}{FILE_PATH: filePath("schemas/bar_schema/views/bar_view/view.create.sql")}},
