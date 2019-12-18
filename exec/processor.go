@@ -92,7 +92,11 @@ func (p *processor) beginTransaction() error {
 		return fmt.Errorf("already in transaction")
 	}
 
-	log.Log(levelOrDryRun(p.ctx, log.LEVEL_INFO), "beginning transaction")
+	msg := "beginning transaction"
+	if p.ctx.DryRun {
+		msg = "NOT " + msg
+	}
+	log.Log(levelOrDryRun(p.ctx, log.LEVEL_INFO), msg)
 	if !p.ctx.DryRun {
 		if err := p.ctx.dbDriver.Begin(); err != nil {
 			return err
@@ -108,7 +112,11 @@ func (p *processor) commitTransaction() error {
 		return fmt.Errorf("not in transaction")
 	}
 
-	log.Log(levelOrDryRun(p.ctx, log.LEVEL_INFO), "committing transaction")
+	msg := "committing transaction"
+	if p.ctx.DryRun {
+		msg = "NOT " + msg
+	}
+	log.Log(levelOrDryRun(p.ctx, log.LEVEL_INFO), msg)
 	if !p.ctx.DryRun {
 		if err := p.ctx.dbDriver.Commit(); err != nil {
 			return err
