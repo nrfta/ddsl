@@ -244,9 +244,25 @@ func (p *processor) executeList(instr *instruction) error {
 		return nil
 
 	case FOREIGN_KEYS:
-		fks, err := p.ctx.dbDriver.ForeignKeys()
-		if err != nil {
-			return err
+		schemaNamesParam, ok := instr.params[SCHEMA_NAMES]
+		var schemaNames []string
+		var err error
+		if !ok {
+			schemaNames, err = p.ctx.dbDriver.Schemas()
+			if err != nil {
+				return err
+			}
+		} else {
+			schemaNames = schemaNamesParam.([]string)
+		}
+
+		fks := []*dbdr.ForeignKeyInfo{}
+		for _, name := range schemaNames {
+			infos, err := p.ctx.dbDriver.ForeignKeys(name)
+			if err != nil {
+				return err
+			}
+			fks = append(fks, infos...)
 		}
 		header := []string{"Parent Table", "Parent Column Name", "Child Table", "Child Column Name"}
 		data := [][]string{}

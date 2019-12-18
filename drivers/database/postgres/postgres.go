@@ -439,8 +439,9 @@ func (p *Postgres) SchemaItems(schema string) ([]*database.SchemaItemInfo, error
 	return items, nil
 }
 
-func (p *Postgres) ForeignKeys() ([]*database.ForeignKeyInfo, error) {
-	rows, err := p.Query(strings.NewReader(database.SQLQueryForeignKeys))
+func (p *Postgres) ForeignKeys(schema string) ([]*database.ForeignKeyInfo, error) {
+	query := fmt.Sprintf(database.SQLQueryForeignKeys, schema)
+	rows, err := p.Query(strings.NewReader(query))
 	if err != nil {
 		return nil, err
 	}

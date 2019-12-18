@@ -15,7 +15,7 @@ func (p *preprocessor) preprocessCreateOrDrop() (int, error) {
 	case EXTENSIONS:
 		return p.preprocessKey(EXTENSIONS)
 	case FOREIGN_KEYS:
-		return p.preprocessKey(FOREIGN_KEYS)
+		return p.preprocessForeignKeys()
 	case ROLES:
 		return p.preprocessKey(ROLES)
 	case SCHEMA:
@@ -56,9 +56,9 @@ func (p *preprocessor) preprocessTypes() (int, error) {
 	var schemaNames []string
 	var err error
 	switch p.command.Clause {
-	case "in":
+	case IN:
 		schemaNames, err = p.getSchemaNames(p.command.ExtArgs, nil)
-	case "except in":
+	case EXCEPT_IN:
 		schemaNames, err = p.getSchemaNames(nil, p.command.ExtArgs)
 	default:
 		schemaNames, err = p.getSchemaNames(nil, nil)
@@ -79,7 +79,34 @@ func (p *preprocessor) preprocessTypes() (int, error) {
 	return count, nil
 }
 
-func (p *preprocessor) preprocessIndexesConstraintsAndPrivileges(itemType string, schemaName string) (int, error) {
+func (p *preprocessor) preprocessForeignKeys() (int, error) {
+	count := 0
+
+	if len(p.command.Clause) == 0 || p.command.Clause == IN || p.command.Clause == EXCEPT_IN {
+		return p.preprocessSchemaItems(FOREIGN_KEYS)
+	}
+
+	if p.command.Clause != "on" {
+		return count, fmt.Errorf("comma-delimited list of tables is required")
+	}
+
+	for _, n := range p.command.ExtArgs {
+		schemaName, tableOrViewName, err := parseSchemaItemName(n)
+		if err != nil {
+			return count, err
+		}
+
+		c, err := p.preprocessCreateOrDropKey(FOREIGN_KEYS_ON, schemaName, tableOrViewName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
+}
+
+func (p *preprocessor) preprocessSchemaItemAttachments(itemType string, schemaName string) (int, error) {
 	relativeDir := fmt.Sprintf("schemas/%s/%s", schemaName, itemType)
 	items, err := p.getSubdirectories(relativeDir)
 	if err != nil {

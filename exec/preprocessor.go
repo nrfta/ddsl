@@ -27,6 +27,7 @@ const (
 	ROLES            string = "roles"
 	SCHEMAS          string = "schemas"
 	FOREIGN_KEYS     string = "foreign-keys"
+	FOREIGN_KEYS_ON  string = "foreign-keys-on"
 	SCHEMA           string = "schema"
 	SCHEMA_ITEMS     string = "schema-items"
 	SCHEMA_PRIVS     string = "schema-privs"
@@ -53,6 +54,8 @@ const (
 	TYPE             string = "type"
 	TYPES            string = "types"
 	CMD              string = "cmd"
+	IN               string = "in"
+	EXCEPT_IN        string = "except in"
 
 	// param keys
 	FILE_PATH    string = "file_path"
@@ -70,7 +73,8 @@ var pathPatterns = map[string]string{
 	DATABASE_PRIVS:   `privileges\.%s\.sql`,
 	ROLES:            `roles\.%s\.sql`,
 	SCHEMAS:          `scheams\.*`,
-	FOREIGN_KEYS:     `foreign_keys\.%s\.sql`,
+	FOREIGN_KEYS:     `schemas/%s/tables/?/foreign-keys\.%s\.sql`,
+	FOREIGN_KEYS_ON:  `schemas/%s/?/%s/foreign-keys\.%s\.sql`,
 	EXTENSIONS:       `extensions\.%s\.sql`,
 	SCHEMA:           `schemas/%s/schema\.%s\.sql`,
 	SCHEMA_PRIVS:     `schemas/%s/privileges\.%s\.sql`,
@@ -562,6 +566,16 @@ func (p *preprocessor) preprocessSchemaItems(itemType string) (int, error) {
 	}
 
 	count := 0
+
+	// before dropping any tables, drop any foreign keys
+	if itemType == TABLES && p.createOrDrop == DROP {
+		c, err := p.preprocessForeignKeyAttachments(schemaNames)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
+
 	for _, schemaName := range schemaNames {
 		c, err := p.preprocessKey(itemType, schemaName)
 		count += c
@@ -570,7 +584,7 @@ func (p *preprocessor) preprocessSchemaItems(itemType string) (int, error) {
 		}
 
 		if c > 0 && p.createOrDrop == CREATE {
-			c, err := p.preprocessIndexesConstraintsAndPrivileges(itemType, schemaName)
+			c, err := p.preprocessSchemaItemAttachments(itemType, schemaName)
 			count += c
 			if err != nil {
 				return count, err
@@ -578,6 +592,27 @@ func (p *preprocessor) preprocessSchemaItems(itemType string) (int, error) {
 		}
 	}
 
+	// after creating all tables, create any foreign keys
+	if itemType == TABLES && p.createOrDrop == CREATE {
+		c, err := p.preprocessForeignKeyAttachments(schemaNames)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
+
+	return count, nil
+}
+
+func (p *preprocessor) preprocessForeignKeyAttachments(schemaNames []string) (int, error) {
+	count := 0
+	for _, schemaName := range schemaNames {
+		c, err := p.preprocessKey(FOREIGN_KEYS, schemaName)
+		count += c
+		if err != nil {
+			return count, err
+		}
+	}
 	return count, nil
 }
 
