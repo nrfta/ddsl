@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/neighborly/ddsl/exec"
-	"github.com/neighborly/ddsl/parser"
+	"github.com/nrfta/ddsl/exec"
+	"github.com/nrfta/ddsl/parser"
 	"io/ioutil"
 )
 

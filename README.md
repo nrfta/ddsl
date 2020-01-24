@@ -21,7 +21,7 @@ agnostic of the database structure or RDS in use.
 ## Install
 
 ```$sh
-go get github.com/neighborly/ddsl
+go get github.com/nrfta/ddsl
 ```
 
 ## Usage

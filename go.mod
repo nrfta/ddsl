@@ -1,4 +1,4 @@
-module github.com/neighborly/ddsl
+module github.com/nrfta/ddsl
 
 go 1.13
 

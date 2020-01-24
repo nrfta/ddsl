@@ -2,7 +2,7 @@ package repl
 
 import (
 	"github.com/c-bata/go-prompt"
-	"github.com/neighborly/ddsl/exec"
+	"github.com/nrfta/ddsl/exec"
 )
 
 var suggestions = []prompt.Suggest{

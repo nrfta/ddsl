@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neighborly/ddsl/drivers/database"
+	"github.com/nrfta/ddsl/drivers/database"
 )
 
 // Test runs tests against database implementations.

@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/neighborly/ddsl/exec"
-	"github.com/neighborly/ddsl/repl"
+	"github.com/nrfta/ddsl/exec"
+	"github.com/nrfta/ddsl/repl"
 	"os"
 
 	"github.com/spf13/cobra"

@@ -1,6 +1,6 @@
 package repl
 
-import "github.com/neighborly/ddsl/exec"
+import "github.com/nrfta/ddsl/exec"
 
 type completerCache struct {
 	repo      string

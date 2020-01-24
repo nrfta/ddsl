@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/neighborly/ddsl/drivers/source"
+	"github.com/nrfta/ddsl/drivers/source"
 )
 
 func init() {

@@ -2,9 +2,9 @@ package exec
 
 import (
 	"fmt"
-	dbdr "github.com/neighborly/ddsl/drivers/database"
-	"github.com/neighborly/ddsl/log"
-	"github.com/neighborly/ddsl/util"
+	dbdr "github.com/nrfta/ddsl/drivers/database"
+	"github.com/nrfta/ddsl/log"
+	"github.com/nrfta/ddsl/util"
 	"os"
 	"strings"
 )

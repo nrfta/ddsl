@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/neighborly/ddsl/parser"
+	"github.com/nrfta/ddsl/parser"
 
 	"github.com/spf13/cobra"
 )

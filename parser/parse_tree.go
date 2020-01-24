@@ -12,7 +12,7 @@ type tree struct {
 var ParseTree *tree
 
 var commandSpec = `ddsl,Top level command,primary
-  create,Top level create command,root
+  create,Create objects from the source,root
     database,Create or drop the database,primary
     roles,Create or drop roles,primary
     schemas,Create or drop all schemas,primary
@@ -83,7 +83,7 @@ var commandSpec = `ddsl,Top level command,primary
           -exclude_schemas,Comma-delimited list of schemas
     type,Create or drop one or more types,primary
       -include_types,Comma-delimited list of types
-  list,Top level list command,root
+  list,List objects from the database,root
     roles,List roles,primary
     schemas,List all schemas,primary
     extensions,List all extensions in one or more schemas,primary
@@ -145,7 +145,7 @@ var commandSpec = `ddsl,Top level command,primary
       -number_of_versions,Number of versions to migrate
     top,Migrate the database to the latest version,primary
     bottom,Migrate the database to the earliest version,primary
-  seed,Top level seed command,root
+  seed,Seed the database from source,root
     cmd,Seed the database by running a shell command,primary
       -command,Shell command to run
     database,Seed the database,primary
@@ -182,7 +182,7 @@ var commandSpec = `ddsl,Top level command,primary
   sql,Run a SQL command or script,root,primary
     -command,SQL command to run
     -file,SQL file to run
-  grant,Top level grant command,root
+  grant,Grand privileges from the source,root
     privileges,Top level grant or revoke privileges command,optional,non-exec
       on,Top level grant or revoke privileges command,non-exec
         database,Grant or revoke privileges on the database,primary
@@ -264,12 +264,12 @@ func initialize() {
 
 	dropDef := ddsl.CommandDefs["create"].clone(ddsl)
 	dropDef.Name = "drop"
-	dropDef.ShortDesc = "Top level drop command"
+	dropDef.ShortDesc = "Drop objects from the source"
 	ddsl.CommandDefs["drop"] = dropDef
 
 	revokeDef := ddsl.CommandDefs["grant"].clone(ddsl)
 	revokeDef.Name = "revoke"
-	revokeDef.ShortDesc = "Top level revoke command"
+	revokeDef.ShortDesc = "Revoke privileges from the source"
 	ddsl.CommandDefs["revoke"] = revokeDef
 
 	ParseTree = &tree{ddsl.CommandDefs}

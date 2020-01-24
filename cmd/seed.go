@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/neighborly/ddsl/log"
-	"github.com/neighborly/ddsl/parser"
+	"github.com/nrfta/ddsl/log"
+	"github.com/nrfta/ddsl/parser"
 	"os"
 	"strings"
 
