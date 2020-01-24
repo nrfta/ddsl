@@ -7,7 +7,7 @@ import (
 	"database/sql"
 	sqldriver "database/sql/driver"
 	"fmt"
-	"github.com/neighborly/ddsl/test/dktesting"
+	"github.com/nrfta/ddsl/test/dktesting"
 	"log"
 
 	"io"
@@ -17,7 +17,7 @@ import (
 	"testing"
 
 	"github.com/dhui/dktest"
-	dt "github.com/neighborly/ddsl/drivers/database/testing"
+	dt "github.com/nrfta/ddsl/drivers/database/testing"
 )
 
 var (

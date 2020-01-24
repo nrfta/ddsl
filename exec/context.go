@@ -1,7 +1,7 @@
 package exec
 
 import (
-	dbdr "github.com/neighborly/ddsl/drivers/database"
+	dbdr "github.com/nrfta/ddsl/drivers/database"
 	"strings"
 )
 

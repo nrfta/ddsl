@@ -2,7 +2,7 @@ package exec
 
 import (
 	"fmt"
-	"github.com/neighborly/ddsl/parser"
+	"github.com/nrfta/ddsl/parser"
 	"github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"os"

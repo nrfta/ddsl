@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/neighborly/ddsl/parser"
+	"github.com/nrfta/ddsl/parser"
 	"os"
 
 	"github.com/spf13/cobra"

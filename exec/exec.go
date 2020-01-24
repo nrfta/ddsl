@@ -1,9 +1,9 @@
 package exec
 
 import (
-	"github.com/neighborly/ddsl/drivers/database/postgres"
-	"github.com/neighborly/ddsl/drivers/source/file"
-	"github.com/neighborly/ddsl/parser"
+	"github.com/nrfta/ddsl/drivers/database/postgres"
+	"github.com/nrfta/ddsl/drivers/source/file"
+	"github.com/nrfta/ddsl/parser"
 )
 
 func init() {

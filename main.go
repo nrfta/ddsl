@@ -1,6 +1,6 @@
 package main
 
-import "github.com/neighborly/ddsl/cmd"
+import "github.com/nrfta/ddsl/cmd"
 
 func main() {
 	cmd.Execute()

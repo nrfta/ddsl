@@ -3,7 +3,7 @@ package repl
 import (
 	"fmt"
 	"github.com/c-bata/go-prompt"
-	"github.com/neighborly/ddsl/parser"
+	"github.com/nrfta/ddsl/parser"
 	"sort"
 	"strings"
 )

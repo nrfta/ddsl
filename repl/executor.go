@@ -1,9 +1,9 @@
 package repl
 
 import (
-	"github.com/neighborly/ddsl/exec"
-	"github.com/neighborly/ddsl/log"
-	"github.com/neighborly/ddsl/parser"
+	"github.com/nrfta/ddsl/exec"
+	"github.com/nrfta/ddsl/log"
+	"github.com/nrfta/ddsl/parser"
 )
 
 func executor(command string) {

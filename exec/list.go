@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	dbdr "github.com/neighborly/ddsl/drivers/database"
+	dbdr "github.com/nrfta/ddsl/drivers/database"
 	"github.com/olekukonko/tablewriter"
 	"os"
 	"strings"

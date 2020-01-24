@@ -3,9 +3,9 @@ package exec
 import (
 	"fmt"
 	"github.com/forestgiant/sliceutil"
-	"github.com/neighborly/ddsl/drivers/source"
-	"github.com/neighborly/ddsl/log"
-	"github.com/neighborly/ddsl/parser"
+	"github.com/nrfta/ddsl/drivers/source"
+	"github.com/nrfta/ddsl/log"
+	"github.com/nrfta/ddsl/parser"
 	"path"
 	"sort"
 	"strings"
