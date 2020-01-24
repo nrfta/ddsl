@@ -61,11 +61,11 @@ the recommended order of operations is:
 ```
 create database
 create roles
-create foreign-keys
 create extensions
 create schemas
 create schema <schema_name>[,<schema_name> ...]
 create tables [ (in | except in) <schema_name>[,<schema_name> ...] ]
+create foreign-keys [ (in | except in) <schema_name>[,<schema_name> ...] ]
 create views [ (in | except in) <schema_name>[,<schema_name> ...] ]
 create types [ (in | except in) <schema_name>[,<schema_name> ...] ]
 create functions [[ ( in | except [in] ) ] <schema_name>[,<schema_name> ...]]
@@ -90,7 +90,7 @@ sql `
     `
 ```
 
-### MIGRATE
+### MIGRATE (NOT YET IMPLEMENTED)
 ```
 migrate top
 migrate bottom
@@ -143,8 +143,6 @@ The following structure is required.
     📄 database.revoke.sql
     📄 extensions.create.sql
     📄 extensions.drop.sql
-    📄 foreign_keys.create.sql
-    📄 foreign_keys.drop.sql
     📄 privileges.grant.sql
     📄 privileges.revoke.sql
     📄 roles.create.sql
@@ -157,8 +155,10 @@ The following structure is required.
         📄 privileges.revoke.sql
         📂 tables
           📂 <table_name>
-            📄 view.create.sql
-            📄 view.drop.sql
+            📄 table.create.sql
+            📄 table.drop.sql
+            📄 foreign_keys.create.sql
+            📄 foreign_keys.drop.sql
             📄 indexes.create.sql
             📄 indexes.drop.sql
             📄 constraints.create.sql
