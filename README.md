@@ -83,7 +83,7 @@ create function <schema_name.function_name>[,<schema_name.function_name> ...];
 create procedure <schema_name.procedure_name>[,<schema_name.procedure_name> ...];
 create constraints on <schema_name.table_name>[,<schema_name.table_name> ...];
 create indexes on <schema_name.table_or_view_name>[,<schema_name.table_or_view_name> ...];
-create triggers [on] <schema_name.table_name>[,<schema_name.table_name> ...];
+create triggers on <schema_name.table_name>[,<schema_name.table_name> ...];
 ```
 
 `drop` syntax is the same as `create`.
@@ -93,17 +93,16 @@ create triggers [on] <schema_name.table_name>[,<schema_name.table_name> ...];
 List objects from the database. This command ignores the source files.
 ```
 list schemas;
+list schema-items [ (in | except in) <schema_name>[,<schema_name> ...] ];
 list tables [ (in | except in) <schema_name>[,<schema_name> ...] ];
 list foreign-keys [ (in | except in) <schema_name>[,<schema_name> ...] ];
 list views [ (in | except in) <schema_name>[,<schema_name> ...] ];
 list types [ (in | except in) <schema_name>[,<schema_name> ...] ];
 list functions [[ ( in | except [in] ) ] <schema_name>[,<schema_name> ...]];
 list procedures [[ ( in | except [in] ) ] <schema_name>[,<schema_name> ...]];
-list table <schema_name.table_name>[,<schema_name.table_name> ...];
-list view <schema_name.view_name>[,<schema_name.view_name> ...];
-list type <schema_name.type_name>[,<schema_name.type_name> ...];
-list function <schema_name.function_name>[,<schema_name.function_name> ...];
-list procedure <schema_name.procedure_name>[,<schema_name.procedure_name> ...];
+list constraints on <schema_name.table_name>[,<schema_name.table_name> ...];
+list indexes on <schema_name.table_or_view_name>[,<schema_name.table_or_view_name> ...];
+list triggers on <schema_name.table_name>[,<schema_name.table_name> ...];
 ```
 
 ### SQL
