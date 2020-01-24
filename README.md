@@ -52,7 +52,7 @@ The `--dry-run` switch will present what a command or script would do without ma
 
 ## Command Syntax
 
-Commands are not case sensitive, through database objects usually are. Commands may be separated by a semicolon and/or a newline. The semicolon is not required when executing a single command.
+Commands are not case sensitive, though database objects usually are. Commands may be separated by a semicolon and/or a newline. The semicolon is not required when executing a single command.
 
 ### Databases
 
