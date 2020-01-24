@@ -43,10 +43,6 @@ COMMAND
 COMMAND
 ```
 
-# open a REPL shell (NOT YET IMPLEMENTED)
-ddsl -s <source_repo> -d <database_rds_url>
-```
-
 The usage can be shortend by setting environment variables.
 
 * `DDSL_SOURCE` - Source code repo URL for the database DDL and migrations
